@@ -21,25 +21,28 @@
 #  along with Mycodo. If not, see <http://www.gnu.org/licenses/>.
 #
 #  Contact at kylegabriel.com
-
+import logging
 import argparse
 import getpass
-import os
 import sys
 
 import sqlalchemy
 
-from mycodo.config import SQL_DATABASE_USER, SQL_DATABASE_NOTE, SQL_DATABASE_MYCODO
-from mycodo.databases.users_db.models import Users
+from mycodo.config import ProductionConfig
+
+from mycodo.databases.models.user_models import Users
 from mycodo.databases.utils import session_scope
-from mycodo.scripts.utils import test_username, test_password, is_email, query_yes_no
+from mycodo.databases.utils import init_db
+from mycodo.databases.utils import populate_db
+
+from mycodo.scripts.utils import test_username
+from mycodo.scripts.utils import test_password
+from mycodo.scripts.utils import is_email
+from mycodo.scripts.utils import query_yes_no
+
 
 if sys.version[0] == "3":
     raw_input = input  # Make sure this works in PY3
-
-USER_DB_PATH = 'sqlite:///' + SQL_DATABASE_USER
-MYCODO_DB_PATH = 'sqlite:///' + SQL_DATABASE_MYCODO
-NOTES_DB_PATH = 'sqlite:///' + SQL_DATABASE_NOTE
 
 
 def add_user(admin=False):
@@ -76,8 +79,8 @@ def add_user(admin=False):
 
     new_user.user_theme = 'dark'
     try:
-        with session_scope(USER_DB_PATH) as db_session:
-            db_session.add(new_user)
+        with session_scope() as db_session:
+            new_user.save(db_session)
         sys.exit(0)
     except sqlalchemy.exc.OperationalError:
         print("Failed to create user.  You most likely need to "
@@ -89,11 +92,18 @@ def add_user(admin=False):
 
 
 def delete_user(username):
+    """
+    finds a user in the database by the name field and deletes it
+
+    :param username: string matching the user's name field (case sensitive)
+    :type username: str
+    :return: None
+    """
     if query_yes_no("Confirm delete user '{}' from user database.".format(username)):
         try:
-            with session_scope(USER_DB_PATH) as db_session:
+            with session_scope() as db_session:
                 user = db_session.query(Users).filter(Users.user_name == username).one()
-                db_session.delete(user)
+                user.delete(db_session)
                 print("User deleted.")
                 sys.exit(0)
         except sqlalchemy.orm.exc.NoResultFound:
@@ -102,9 +112,17 @@ def delete_user(username):
 
 
 def change_password(username):
+    """
+    Updates the password of the user who's name field matches username
+    System Exits on Error
+
+    :param username: string matching the user's name field (case sensitive)
+    :type username: str
+    :return: None - System Exits
+    """
     print('Changing password for {}'.format(username))
 
-    with session_scope(USER_DB_PATH) as db_session:
+    with session_scope() as db_session:
         user = db_session.query(Users).filter(Users.user_name == username).one()
 
         while True:
@@ -114,41 +132,29 @@ def change_password(username):
                 print("Passwords don't match")
             else:
                 try:
+                    # Verify that the new password meets password requirements
                     if test_password(user_password):
                         user.set_password(user_password)
+                        user.save(db_session)
                         sys.exit(0)
                 except sqlalchemy.orm.exc.NoResultFound:
                     print("No user found with this name.")
                     sys.exit(1)
 
 
-def create_dbs(db_name, create_all=False):
-    if not os.path.exists(os.path.dirname(SQL_DATABASE_USER)):
-        try:
-            os.makedirs(os.path.dirname(SQL_DATABASE_USER))
-        except OSError as exc: # Guard against race condition
-            if exc.errno != errno.EEXIST:
-                raise
+def create_dbs(config=ProductionConfig):
+    """
+    Creates the database and populates it with default data
 
-    if db_name == 'mycodo' or create_all:
-        print("Creating/verifying {} at {} ...".format(db_name, MYCODO_DB_PATH))
+    Tables are created when the declarative base class has been
+    attached to them (usually through an import of the models).
+    """
 
-        from mycodo.databases.mycodo_db import init_db
-        from mycodo.databases.mycodo_db import populate_db
-        init_db(MYCODO_DB_PATH)
-        populate_db(MYCODO_DB_PATH)
+    logging.info("Initializing Database...")
+    init_db(config=config)
 
-    if db_name == 'notes' or create_all:
-        print("Creating/verifying {} at {} ...".format(db_name, NOTES_DB_PATH))
-
-        from mycodo.databases.notes_db import init_db
-        init_db(NOTES_DB_PATH)
-
-    if db_name == 'users' or create_all:
-        print("Creating/verifying {} at {} ...".format(db_name, USER_DB_PATH))
-
-        from mycodo.databases.users_db import init_db
-        init_db(USER_DB_PATH)
+    logging.info("Populating Default Data")
+    populate_db()
     sys.exit(0)
 
 
