@@ -25,15 +25,16 @@
 # import subprocess
 
 import bcrypt
-from sqlalchemy import Column, INTEGER, VARCHAR
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, VARCHAR, INTEGER
+from mycodo.databases import Base
+from mycodo.databases import DefaultPK
+from mycodo.databases import CRUDMixin
 
-Base = declarative_base()
 
-class Users(Base):
+class Users(CRUDMixin, DefaultPK, Base):
+    """ simple user class """
     __tablename__ = "users"
 
-    user_id = Column(INTEGER, primary_key=True)
     user_name = Column(VARCHAR(64), unique=True, index=True)
     user_password_hash = Column(VARCHAR(255))
     user_email = Column(VARCHAR(64), unique=True, index=True)
@@ -41,8 +42,10 @@ class Users(Base):
     user_theme = Column(VARCHAR(64))
 
     def set_password(self, new_password):
+        """ Saves a password hash """
         self.user_password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
 
-    def check_password(self, password, hashed_password):
-        hashes_match = bcrypt.hashpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+    def check_password(self, password):
+        """ Verifies that when password is hashed it matches the stored password hash """
+        hashes_match = bcrypt.hashpw(password.encode('utf-8'), self.user_password_hash.encode('utf-8'))
         return hashes_match

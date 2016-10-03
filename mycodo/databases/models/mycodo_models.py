@@ -21,27 +21,22 @@
 #  along with Mycodo. If not, see <http://www.gnu.org/licenses/>.
 #
 #  Contact at kylegabriel.com
-
-from sqlalchemy import Column, TEXT, INT, REAL, DATETIME, BOOLEAN, String
-from sqlalchemy.ext.declarative import declarative_base
-import RPi.GPIO as GPIO
+from RPi import GPIO
 import datetime
 
+from sqlalchemy import Column, TEXT, INT, REAL, DATETIME, BOOLEAN, String
+from mycodo.databases import Base
+from mycodo.databases import CRUDMixin, DefaultPK
 
-Base = declarative_base()
 
-
-# TODO Build a BaseConditional that all the conditionals inherit from
-
-class AlembicVersion(Base):
+class AlembicVersion(CRUDMixin, Base):
     __tablename__ = "alembic_version"
     version_num = Column(String(32), primary_key=True, nullable=False)
 
 
-class Method(Base):
+class Method(CRUDMixin, DefaultPK, Base):
     __tablename__ = "method"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     method_id = Column(TEXT)
     method_type = Column(TEXT)
@@ -68,10 +63,9 @@ class Method(Base):
     y3 = Column(REAL)
 
 
-class Relay(Base):
+class Relay(CRUDMixin, DefaultPK, Base):
     __tablename__ = "relays"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     pin = Column(INT)
     amps = Column(REAL)
@@ -130,10 +124,9 @@ class Relay(Base):
         return self.trigger == GPIO.input(self.pin)
 
 
-class RelayConditional(Base):
+class RelayConditional(CRUDMixin, DefaultPK, Base):
     __tablename__ = "relayconditional"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     activated = Column(BOOLEAN)
     if_relay_id = Column(TEXT)
@@ -147,10 +140,9 @@ class RelayConditional(Base):
     flash_lcd = Column(TEXT)
 
 
-class Sensor(Base):
+class Sensor(CRUDMixin, DefaultPK, Base):
     __tablename__ = "sensor"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     activated = Column(INT)
     device = Column(TEXT) 
@@ -187,10 +179,9 @@ class Sensor(Base):
         return self.activated
 
 
-class SensorPreset(Base):
+class SensorPreset(CRUDMixin, DefaultPK, Base):
     __tablename__ = "sensorpreset"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     device = Column(TEXT) 
     device_type = Column(TEXT)
@@ -204,10 +195,9 @@ class SensorPreset(Base):
     sht_voltage = Column(REAL)
 
 
-class SensorConditional(Base):
+class SensorConditional(CRUDMixin, DefaultPK, Base):
     __tablename__ = "sensorconditional"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     activated = Column(INT)
     sensor_id = Column(TEXT)
@@ -225,10 +215,9 @@ class SensorConditional(Base):
     camera_record = Column(TEXT)
 
 
-class PID(Base):
+class PID(CRUDMixin, DefaultPK, Base):
     __tablename__ = "pid"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     activated = Column(INT)
     sensor_id = Column(TEXT)
@@ -250,10 +239,9 @@ class PID(Base):
     lower_max_duration = Column(INT)
 
 
-class PIDPreset(Base):
+class PIDPreset(CRUDMixin, DefaultPK, Base):
     __tablename__ = "pidpreset"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     sensor_id = Column(TEXT)
     measure_type = Column(TEXT)
@@ -271,7 +259,7 @@ class PIDPreset(Base):
     lower_max_duration = Column(INT)
 
 
-class PIDConditional(Base):
+class PIDConditional(CRUDMixin, DefaultPK, Base):
     """
     PID conditionals
 
@@ -284,7 +272,6 @@ class PIDConditional(Base):
     """
     __tablename__ = 'pidconditional'
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     activated = Column(INT)
     pid_id = Column(TEXT)
@@ -295,9 +282,8 @@ class PIDConditional(Base):
     notify = Column(TEXT)
 
 
-class Graph(Base):
+class Graph(CRUDMixin, DefaultPK, Base):
     __tablename__ = "graph"
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     pid_ids = Column(TEXT)
     relay_ids = Column(TEXT)
@@ -311,24 +297,22 @@ class Graph(Base):
     enable_export = Column(BOOLEAN)
 
 
-class DisplayOrder(Base):
+class DisplayOrder(CRUDMixin, DefaultPK, Base):
     __tablename__ = "displayorder"
 
-    id = Column(TEXT, unique=True, primary_key=True)
-    graph = Column(TEXT)
+    graph = Column(TEXT, default='')
     lcd = Column(TEXT)
-    log = Column(TEXT)
-    pid = Column(TEXT)
-    relay = Column(TEXT)
+    log = Column(TEXT, default='')
+    pid = Column(TEXT, default='')
+    relay = Column(TEXT, default='')
     remote_host = Column(TEXT)
-    sensor = Column(TEXT)
+    sensor = Column(TEXT, default='')
     timer = Column(TEXT)
 
 
-class LCD(Base):
+class LCD(CRUDMixin, DefaultPK, Base):
     __tablename__ = "lcd"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     activated = Column(INT)
     pin = Column(TEXT)
@@ -347,10 +331,9 @@ class LCD(Base):
     line_4_measurement = Column(TEXT)
 
 
-class Log(Base):
+class Log(CRUDMixin, DefaultPK, Base):
     __tablename__ = "log"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     sensor_id = Column(TEXT)
     measure_type = Column(TEXT)
@@ -358,10 +341,9 @@ class Log(Base):
     period = Column(INT)
 
 
-class Timer(Base):
+class Timer(CRUDMixin, DefaultPK, Base):
     __tablename__ = "timer"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     name = Column(TEXT)
     activated = Column(INT)
     relay_id = Column(TEXT)
@@ -371,78 +353,75 @@ class Timer(Base):
     duration_off = Column(REAL)
 
 
-class SMTP(Base):
+class SMTP(CRUDMixin, DefaultPK, Base):
     __tablename__ = "smtp"
 
-    id = Column(TEXT, unique=True, primary_key=True)
-    host = Column(TEXT)
-    ssl = Column(INT)
-    port = Column(INT)
-    user = Column(TEXT)
-    passw = Column(TEXT)
-    email_from = Column(TEXT)
-    hourly_max = Column(INT)
+    host = Column(TEXT, default='smtp.gmail.com')
+    ssl = Column(INT, default=1)
+    port = Column(INT, default=465)
+    user = Column(TEXT, default='email@gmail.com')
+    passw = Column(TEXT, default='password')
+    email_from = Column(TEXT, default='email@gmail.com')
+    hourly_max = Column(INT, default=2)
 
 
-class CameraStill(Base):
+class CameraStill(CRUDMixin, DefaultPK, Base):
     __tablename__ = "camerastill"
 
-    id = Column(TEXT, unique=True, primary_key=True)
-    hflip = Column(BOOLEAN)
-    vflip = Column(BOOLEAN)
-    rotation = Column(INT)
+    hflip = Column(BOOLEAN, default=False)
+    vflip = Column(BOOLEAN, default=False)
+    rotation = Column(INT, default=0)
     relay_id = Column(TEXT)
-    timestamp = Column(INT)
-    display_last = Column(INT)
+    timestamp = Column(INT, default=1)
+    display_last = Column(INT, default=1)
     cmd_pre_camera = Column(TEXT)
     cmd_post_camera = Column(TEXT)
-    extra_parameters = Column(TEXT)
+    extra_parameters = Column(TEXT, default='--vflip --hflip --width 800 --height 600')
 
 
-class CameraStream(Base):
+class CameraStream(CRUDMixin, DefaultPK, Base):
     __tablename__ = "camerastream"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     relay_id = Column(TEXT)
     cmd_pre_camera = Column(TEXT)
     cmd_post_camera = Column(TEXT)
-    extra_parameters = Column(TEXT)
+    extra_parameters = Column(TEXT, default=('--contrast 20 --sharpness 60 --awb auto --quality 20 '
+                                             '--vflip --hflip --nopreview --width 800 --height 600'))
 
 
-class CameraTimelapse(Base):
+class CameraTimelapse(CRUDMixin, DefaultPK, Base):
     __tablename__ = "cameratimelapse"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     relay_id = Column(TEXT)
-    path = Column(TEXT)
-    prefix = Column(TEXT)
-    file_timestamp = Column(INT)
-    display_last = Column(INT)
+    path = Column(TEXT, default='/var/www/mycodo/camera-timelapse')
+    prefix = Column(TEXT, default='Timelapse')
+    file_timestamp = Column(INT, default=1)
+    display_last = Column(INT, default=1)
     cmd_pre_camera = Column(TEXT)
     cmd_post_camera = Column(TEXT)
-    extra_parameters = Column(TEXT)
+    extra_parameters = Column(TEXT, default=('--nopreview --contrast 20 --sharpness 60 --awb auto '
+                                             '--quality 20 --vflip --hflip --width 800 --height 600'))
 
 
-class Misc(Base):
+class Misc(CRUDMixin, DefaultPK, Base):
     __tablename__ = "misc"
 
-    id = Column(TEXT, unique=True, primary_key=True)
-    force_https = Column(BOOLEAN)
-    dismiss_notification = Column(INT)
-    hide_alert_success = Column(BOOLEAN)
-    hide_alert_info = Column(BOOLEAN)
-    hide_alert_warning = Column(BOOLEAN)
-    stats_opt_out = Column(BOOLEAN)
+    force_https = Column(BOOLEAN, default=True)
+    dismiss_notification = Column(INT, default=0)
+    hide_alert_success = Column(BOOLEAN, default=False)
+    hide_alert_info = Column(BOOLEAN, default=False)
+    hide_alert_warning = Column(BOOLEAN, default=False)
+    stats_opt_out = Column(BOOLEAN, default=False)
     login_message = Column(TEXT)
-    relay_stats_volts = Column(INT)
-    relay_stats_cost = Column(REAL)
-    relay_stats_currency = Column(TEXT)
-    relay_stats_dayofmonth = Column(INT)
+    relay_stats_volts = Column(INT, default=120)
+    relay_stats_cost = Column(REAL, default=0.05)
+    relay_stats_currency = Column(TEXT, default='$')
+    relay_stats_dayofmonth = Column(INT, default=15)
 
-class Remote(Base):
+
+class Remote(CRUDMixin, DefaultPK, Base):
     __tablename__ = "remote"
 
-    id = Column(TEXT, unique=True, primary_key=True)
     activated = Column(INT)
     host = Column(TEXT)
     username = Column(TEXT)

@@ -23,24 +23,23 @@
 #  Contact at kylegabriel.com
 
 from sqlalchemy import Column, TEXT
-from sqlalchemy.ext.declarative import declarative_base
+from mycodo.databases import CRUDMixin
+from mycodo.databases import Base
+from mycodo.databases import DefaultPK
 
-Base = declarative_base()
 
-
-class Notes(Base):
+class Notes(CRUDMixin, DefaultPK, Base):
     __tablename__ = "notes"
 
-    id = Column(TEXT, primary_key=True)
     time = Column(TEXT)
     user = Column(TEXT)
     title = Column(TEXT)
     note = Column(TEXT)
 
-class Uploads(Base):
+
+class Uploads(CRUDMixin, DefaultPK, Base):
     __tablename__ = "uploads"
 
-    id = Column(TEXT, primary_key=True)
     name = Column(TEXT)
     file_name = Column(TEXT)
     location = Column(TEXT)
