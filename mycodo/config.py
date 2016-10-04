@@ -31,7 +31,7 @@ INSTALL_DIRECTORY = os.path.dirname(os.path.realpath(__file__)) + '/..'
 LOCK_PATH = '/var/lock'
 DAEMON_PID_FILE = os.path.join(LOCK_PATH, 'mycodo.pid')
 
-LOG_PATH = '/var/log/mycodo' # Where generated logs are stored
+LOG_PATH = '/var/log/mycodo'  # Where generated logs are stored
 
 LOGIN_LOG_FILE = os.path.join(LOG_PATH, 'login.log')
 DAEMON_LOG_FILE = os.path.join(LOG_PATH, 'mycodo.log')
@@ -56,9 +56,6 @@ RESTORE_LOG_FILE = os.path.join(LOG_PATH, 'mycodorestore.log')
 # RELAY_LOG_FILE = os.path.join(LOG_PATH, "relay.log")
 
 DATABASE_PATH = os.path.join(INSTALL_DIRECTORY, 'databases')
-SQL_DATABASE_MYCODO = os.path.join(DATABASE_PATH, 'mycodo.db')
-SQL_DATABASE_USER = os.path.join(DATABASE_PATH, 'users.db')
-SQL_DATABASE_NOTE = os.path.join(DATABASE_PATH, 'notes.db')
 
 # Influxdb
 INFLUXDB_HOST = 'localhost'
@@ -86,7 +83,17 @@ STATS_DATABASE = 'mycodo_stats'
 
 # Login
 LOGIN_ATTEMPTS = 5
-LOGIN_BAN_TIME_SECONDS = 600 # 10 minutes
+LOGIN_BAN_TIME_SECONDS = 600  # 10 minutes
 
 # Relay
 MAX_AMPS = 15
+
+
+class ProductionConfig(object):
+    """ Production environment Configuration """
+    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(DATABASE_PATH, 'mycodo.db')
+
+
+class TestConfig(object):
+    """ testing environment config """
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'
