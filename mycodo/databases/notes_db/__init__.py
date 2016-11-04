@@ -43,9 +43,8 @@ def insert_or_ignore(an_object, a_session):
     except sqlalchemy.exc.IntegrityError as e:
         # Ignore duplicate primary key
         # This is the same as the 'INSERT OR IGNORE'
-        print(e)
+        logger.error("IntegrityError when committing changes to the notes_db: {err}".format(err=e))
         a_session.rollback()
-        pass
     except Exception as e:
         logger.error("Exception raised when committing changes to the notes_db: {err}".format(err=e))
         # Something else went wrong!!
