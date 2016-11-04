@@ -19,11 +19,13 @@
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-
+import logging
 import pigpio
 import time
 import RPi.GPIO as GPIO
 from sensorutils import dewpoint
+
+logger = logging.getLogger(__name__)
 
 
 class HTU21D_read(object):
@@ -47,7 +49,8 @@ class HTU21D_read(object):
             self.htu_reset()
             self._temperature = self.read_temperature()
             self._humidity = self.read_humidity()
-        except:
+        except Exception as e:
+            logger.error("{cls} raised an exception during read(): {err}".format(cls=type(self).__name__, err=e))
             return 1
 
     def htu_reset(self):
