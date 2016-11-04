@@ -1,10 +1,13 @@
 # coding=utf-8
-
+import logging
 import time
 from sht_sensor import Sht
 
+logger = logging.getLogger(__name__)
+
 
 class SHT1x_7x_read(object):
+    """ Sensor """
     def __init__(self, pin, clock_pin, voltage):
         self._temperature = 0
         self._humidity = 0
@@ -15,12 +18,14 @@ class SHT1x_7x_read(object):
         self.running = True
 
     def read(self):
+        """ Take a measurement """
         try:
             sht_sensor = Sht(self.clock_pin, self.pin, voltage=self.voltage)
             self._temperature = sht_sensor.read_t()
             self._humidity = sht_sensor.read_rh()
             self._dewpoint = sht_sensor.read_dew_point(self.temperature, self.humidity)
-        except:
+        except Exception as e:
+            logger.error('{cls} raised an exception when taking a reading: {err}'.format(cls=type(self).__name__, err=e))
             return 1
 
     @property
