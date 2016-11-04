@@ -273,7 +273,8 @@ class DaemonController(threading.Thread):
                         try:
                             os.remove(FILE_TIMELAPSE_PARAM)
                             os.remove(LOCK_FILE_TIMELAPSE)
-                        except:
+                        except Exception as e:
+                            self.logger.error("{cls} raised an exception: {err}".format(cls=type(self).__name__, err=e))
                             pass
                     elif now > float(dict_timelapse_param['next_capture']):
                         # Ensure next capture is greater than now (in case of power failure/reboot)
@@ -306,8 +307,8 @@ class DaemonController(threading.Thread):
                     try:
                         os.remove(FILE_TIMELAPSE_PARAM)
                         os.remove(LOCK_FILE_TIMELAPSE)
-                    except:
-                        pass
+                    except Exception as e:
+                        self.logger.error("{cls} raised an exception: {err}".format(cls=type(self).__name__, err=e))
 
                 # Log ram usage every 24 hours
                 if now > self.timer_ram_use:
