@@ -1,11 +1,14 @@
 # coding=utf-8
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import logging
 import atexit
 import time
 import pigpio
 from sensorutils import dewpoint
+
+
+logger = logging.getLogger(__name__)
 
 
 class DHT11(object):
@@ -160,7 +163,8 @@ class DHT11(object):
                 self.pi.set_mode(self.gpio, pigpio.INPUT)
                 self.pi.set_watchdog(self.gpio, 200)
                 time.sleep(0.2)
-            except:
+            except Exception as e:
+                logger.error("{cls} raised an error during read(): {err}".format(cls=type(self).__name__, err=e))
                 return 1
 
     def close(self):
