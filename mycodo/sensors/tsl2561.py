@@ -1,12 +1,14 @@
 # coding=utf-8
-
-
+import logging
 import time
 import RPi.GPIO as GPIO
 from tentacle_pi.TSL2561 import TSL2561
 
+logger = logging.getLogger(__name__)
+
 
 class TSL2561_read(object):
+    """ Sensor """
     def __init__(self, address, bus):
         self._lux = None
         self.i2c_address = address
@@ -14,13 +16,15 @@ class TSL2561_read(object):
         self.running = True
 
     def read(self):
+        """ Take measurement """
         try:
             tsl = TSL2561(self.i2c_address, "/dev/i2c-" + str(self.i2c_bus))
             tsl.enable_autogain()
             # tsl.set_gain(16)
             tsl.set_time(0x00)
             self._lux = tsl.lux()
-        except:
+        except Exception as e:
+            logger.error("{cls} raised an error during read() call: {err}".format(cls=type(self).__name__, err=e))
             return 1
 
     @property
