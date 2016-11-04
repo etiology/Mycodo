@@ -1,9 +1,12 @@
 # coding=utf-8
-
+import logging
 import atexit
 import time
 import pigpio
 from sensorutils import dewpoint
+
+
+logger = logging.getLogger(__name__)
 
 
 class DHT22(object):
@@ -84,7 +87,8 @@ class DHT22(object):
         # Prevent from crashing the mycodo daemon if pigpiod isn't running
         try:
             self.setup()
-        except:
+        except Exception as e:
+            logger.error("{cls} raised error during setup(): {err}".format(cls=type(self).__name__, err=e))
             raise Exception('DHT22 could not initialize. Check if gpiod is running.')
 
     def setup(self):
@@ -257,7 +261,8 @@ class DHT22(object):
                 self.pi.set_mode(self.gpio, pigpio.INPUT)
                 self.pi.set_watchdog(self.gpio, 200)
                 time.sleep(0.2)
-            except:
+            except Exception as e:
+                logger.error("{cls} raised an error during read(): {err}".format(cls=type(self).__name__, err=e))
                 return 1
 
     def close(self):
