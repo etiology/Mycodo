@@ -34,7 +34,6 @@ import threading
 import time
 import timeit
 import rpyc
-from time import strptime  # Fix multithread bug in strptime
 from collections import OrderedDict
 from daemonize import Daemonize
 from rpyc.utils.server import ThreadedServer
@@ -275,7 +274,6 @@ class DaemonController(threading.Thread):
                             os.remove(LOCK_FILE_TIMELAPSE)
                         except Exception as e:
                             self.logger.error("{cls} raised an exception: {err}".format(cls=type(self).__name__, err=e))
-                            pass
                     elif now > float(dict_timelapse_param['next_capture']):
                         # Ensure next capture is greater than now (in case of power failure/reboot)
                         next_capture = float(dict_timelapse_param['next_capture'])
