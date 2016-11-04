@@ -21,11 +21,14 @@
 #  along with Mycodo. If not, see <http://www.gnu.org/licenses/>.
 #
 #  Contact at kylegabriel.com
-
+import logging
 import sqlalchemy
 from sqlalchemy import create_engine
 
 from .models import Base
+
+
+logger = logging.getLogger(__name__)
 
 
 def insert_or_ignore(an_object, a_session):
@@ -43,7 +46,8 @@ def insert_or_ignore(an_object, a_session):
         print(e)
         a_session.rollback()
         pass
-    except:
+    except Exception as e:
+        logger.error("Exception raised when committing changes to the notes_db: {err}".format(err=e))
         # Something else went wrong!!
         a_session.rollback()
         raise
