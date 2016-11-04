@@ -179,10 +179,6 @@ class DHT22(object):
 
         elif self.bit >= 0:  # in humidity high byte
             self.hH = (self.hH << 1) + val
-
-        else:  # header bits
-            pass
-
         self.bit += 1
 
     def _edge_FALL(self, tick, diff):
