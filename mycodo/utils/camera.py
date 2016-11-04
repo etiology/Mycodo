@@ -1,5 +1,5 @@
 # coding=utf-8
-
+import logging
 import datetime
 import picamera
 import time
@@ -7,11 +7,12 @@ import time
 from system_pi import assure_path_exists
 from system_pi import set_user_grp
 
+logger = logging.getLogger(__name__)
+
 
 #
 # Camera record
 #
-
 def camera_record(install_directory, record_type, settings, duration_sec=None, start_time=None, capture_number=None):
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     if record_type == 'photo':
@@ -26,7 +27,8 @@ def camera_record(install_directory, record_type, settings, duration_sec=None, s
         path = '{}/camera-video'.format(install_directory)
         filename = 'Video-{}.h264'.format(timestamp)
         path_file = '{}/{}'.format(path, filename)
-    
+
+    logging.debug("Camera path is: {path}".format(path=path))
     assure_path_exists(path)
 
     with picamera.PiCamera() as camera:
@@ -46,5 +48,5 @@ def camera_record(install_directory, record_type, settings, duration_sec=None, s
 
     try:
         set_user_grp(path_file, 'mycodo', 'mycodo')
-    except:
-        pass
+    except Exception as e:
+        logger.error("Exception raised in 'camera_record' when setting user grp: {err}".format(err=e))
