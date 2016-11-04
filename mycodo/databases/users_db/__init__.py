@@ -45,7 +45,6 @@ def insert_or_ignore(an_object, a_session):
         # This is the same as the 'INSERT OR IGNORE'
         logger.debug("An error occurred when commiting changes to a database: {err}".format(err=e))
         a_session.rollback()
-        pass
     except Exception as e:
         logger.error("Exception in 'insert_or_ignore'' call.  Error: '{err}'".format(err=e))
         # Something else went wrong!!
