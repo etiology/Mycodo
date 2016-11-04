@@ -1,7 +1,10 @@
 # coding=utf-8
-
+import logging
 import time
 from w1thermsensor import W1ThermSensor
+
+
+logger = logging.getLogger(__name__)
 
 
 class DS18B20(object):
@@ -17,10 +20,10 @@ class DS18B20(object):
             time.sleep(1)
             try:
                 temperature.append(W1ThermSensor(W1ThermSensor.THERM_SENSOR_DS18B20, self.pin).get_temperature())
-            except:
+            except Exception as e:
+                logger.error("{cls} raised an error during read(): {err}".format(cls=type(self).__name__, err=e))
                 return 1
-        if (None in temperature or
-                        max(temperature) - min(temperature) > 10):
+        if None in temperature or max(temperature) - min(temperature) > 10:
             self._temperature = None
         else:
             self._temperature = sum(temperature, 0.0) / len(temperature)
