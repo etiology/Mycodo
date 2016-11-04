@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function  # In python 2.7
+import logging
 import sys
 
 import datetime
@@ -9,6 +10,9 @@ import io
 import os
 import threading
 import picamera
+
+
+logger = logging.getLogger(__name__)
 
 
 class CameraStream(object):
@@ -70,8 +74,8 @@ class CameraStream(object):
                     # the last 10 seconds stop the thread
                     if time.time() - cls.last_access > 10 or cls.terminate:
                         break
-        except:
-            pass
+        except Exception as e:
+            logger.error("{cls} raised an error: {err}".format(cls=cls.__name__, err=e))
         cls.thread = None
 
 
@@ -122,5 +126,6 @@ class CameraTimelapse(object):
                         break
                     time.sleep(cls.interval_sec)
         except Exception as msg:
+            logger.error('Timelapse Error: {msg}'.format(msg=msg))
             print('Timelapse Error: {}'.format(msg), file=sys.stderr)
         cls.thread = None
