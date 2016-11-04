@@ -1,9 +1,12 @@
 # coding=utf-8
-
+import logging
 import time
 import RPi.GPIO as GPIO
 from tentacle_pi.AM2315 import AM2315
 from sensorutils import dewpoint
+
+
+logger = logging.getLogger(__name__)
 
 
 class AM2315_read(object):
@@ -26,7 +29,8 @@ class AM2315_read(object):
                 self._temperature = temperature
                 self._humidity = humidity
                 self._crc_check = crc_check
-        except:
+        except Exception as e:
+            logger.error("{cls} raised an exception during read(): {err}".format(cls=type(self).__name__, err=e))
             return 1
 
     @property
