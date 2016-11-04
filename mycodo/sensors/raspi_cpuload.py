@@ -1,10 +1,13 @@
 # coding=utf-8
-
+import logging
 import os
 import time
 
+logger = logging.getLogger(__name__)
+
 
 class RaspberryPiCPULoad(object):
+    """ Sensor """
     def __init__(self):
         self._cpu_load = 0
         self.running = True
@@ -13,9 +16,11 @@ class RaspberryPiCPULoad(object):
         self._cpu_load_15m = None
 
     def read(self):
+        """ Take measurement """
         try:
             self._cpu_load_1m, self._cpu_load_5m, self._cpu_load_15m = os.getloadavg()
-        except:
+        except Exception as e:
+            logger.error("{cls} raised an error during read() call: {err}".format(cls=type(self).__name__, err=e))
             return 1
 
     @property
