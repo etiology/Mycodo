@@ -1,10 +1,11 @@
 # coding=utf-8
-
+import logging
 import serial
 import time
 from lockfile import LockFile
 import RPi.GPIO as GPIO
 
+logger = logging.getLogger(__name__)
 K30_LOCK_FILE = "/var/lock/sensor-k30"
 
 
@@ -25,12 +26,14 @@ class K30(object):
             while not lock.i_am_locking():
                 try:
                     lock.acquire(timeout=60)  # wait up to 60 seconds before breaking lock
-                except:
+                except Exception as e:
+                    logger.error("{cls} raised error during read(): {err}".format(cls=type(self).__name__, err=e))
                     lock.break_lock()
                     lock.acquire()
             self._co2 = self.get_measurement()
             lock.release()
-        except:
+        except Exception as e:
+            logger.error("{cls} raised error during read(): {err}".format(cls=type(self).__name__, err=e))
             lock.release()
             return 1
 
