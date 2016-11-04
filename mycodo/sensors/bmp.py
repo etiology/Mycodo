@@ -1,8 +1,10 @@
 # coding=utf-8
-
+import logging
 import time
 import Adafruit_BMP.BMP085 as BMP085
 import RPi.GPIO as GPIO
+
+logger = logging.getLogger(__name__)
 
 
 class BMP(object):
@@ -20,7 +22,8 @@ class BMP(object):
             self._temperature = bmp.read_temperature()
             self._pressure = bmp.read_pressure()
             self._altitude = bmp.read_altitude()
-        except:
+        except Exception as e:
+            logger.error("{cls} raised an error during read(): {err}".format(cls=type(self).__name__, err=e))
             return 1
 
     @property
