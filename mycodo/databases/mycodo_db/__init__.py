@@ -19,12 +19,14 @@
 #  along with Mycodo. If not, see <http://www.gnu.org/licenses/>.
 #
 #  Contact at kylegabriel.com
-
+import logging
 import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from .models import Base, AlembicVersion, DisplayOrder, Method, Misc, CameraTimelapse, CameraStream, CameraStill, SMTP, Remote
+
+logger = logging.getLogger(__name__)
 
 
 def insert_or_ignore(an_object, a_session):
@@ -39,27 +41,34 @@ def insert_or_ignore(an_object, a_session):
     except sqlalchemy.exc.IntegrityError as e:
         # Ignore duplicate primary key
         # This is the same as the 'INSERT OR IGNORE'
-        print(e)
+        logger.error("Failed to commit changes to the mycodo_db. {err}".format(err=e))
         a_session.rollback()
-        pass
-    except:
+    except Exception as e:
+        logger.error("Unknown error raised when committing changes to the mycodo_db. {err}".format(err=e))
         # Something else went wrong!!
         a_session.rollback()
         raise
 
 
-def init_db(db_path):
-    engine = create_engine(db_path)
+def init_db(db_uri):
+    """ Binds the table models to the db and creates tables if they are missing"""
+    engine = create_engine(db_uri)
     Base.metadata.create_all(engine)
 
 
-def drop_db(db_path):
-    engine = create_engine(db_path)
+def drop_db(db_uri):
+    """ Removes data from the db """
+    engine = create_engine(db_uri)
     Base.metadata.drop_all(engine)
 
 
-def populate_db(db_path):
-    engine = create_engine(db_path)
+def populate_db(db_uri):
+    """
+    Populates the db tables with default values.  This will likely
+    be replaced in the future by just setting the default values in the
+    db fields
+    """
+    engine = create_engine(db_uri)
     Session = sessionmaker(bind=engine)
     session = Session()
     try:
