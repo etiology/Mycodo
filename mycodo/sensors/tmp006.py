@@ -1,12 +1,15 @@
 # coding=utf-8
 
-
+import logging
 import time
 import Adafruit_TMP.TMP006 as TMP006
 import RPi.GPIO as GPIO
 
+logger = logging.getLogger(__name__)
+
 
 class TMP006_read(object):
+    """ Sensor """
     def __init__(self, address, bus):
         self._temperature_die = None
         self._temperature_object = None
@@ -15,12 +18,14 @@ class TMP006_read(object):
         self.running = True
 
     def read(self):
+        """ take a measurement """
         try:
             sensor = TMP006.TMP006(address=self.i2c_address, busnum=self.i2c_bus)
             sensor.begin()
             self._temperature_object = sensor.readObjTempC()
             self._temperature_die = sensor.readDieTempC()
-        except:
+        except Exception as e:
+            logger.error("{cls} raised an exception when taking a reading: {err}".format(cls=type(self).__name__, err=e))
             return 1
 
     @property
