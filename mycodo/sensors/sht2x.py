@@ -1,7 +1,7 @@
 # coding=utf-8
 #
 # From https://github.com/ControlEverythingCommunity/SHT25/blob/master/Python/SHT25.py
-
+import logging
 import smbus
 import time
 import RPi.GPIO as GPIO
@@ -9,7 +9,11 @@ import RPi.GPIO as GPIO
 from sensorutils import dewpoint
 
 
+logger = logging.getLogger(__name__)
+
+
 class SHT2x_read(object):
+    """ Sensor """
     def __init__(self, address, bus):
         self._temperature = 0
         self._humidity = 0
@@ -19,6 +23,7 @@ class SHT2x_read(object):
         self.running = True
 
     def read(self):
+        """ Take measurement """
         try:
             bus = smbus.SMBus(self.i2c_bus)
             # SHT25 address, 0x40(64)
@@ -46,7 +51,8 @@ class SHT2x_read(object):
             self._humidity = -6 + (((data0 * 256 + data1) * 125.0) / 65536.0)
 
             self._dewpoint = dewpoint(self.temperature, self.humidity)
-        except:
+        except Exception as e:
+            logger.error("{cls} raised an error during read() call: {err}".format(cls=type(self).__name__, err=e))
             return 1
 
     @property
