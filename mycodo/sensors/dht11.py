@@ -128,8 +128,6 @@ class DHT11(object):
             self._temperature = (self._temperature << 1) + val
         elif 0 <= self.bit < 8:  # in humidity byte
             self._humidity = (self._humidity << 1) + val
-        else:  # skip header bits
-            pass
         self.bit += 1
 
     def _edge_FALL(self, tick, diff):
