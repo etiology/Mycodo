@@ -18,60 +18,73 @@ patch.dict("sys.modules",
            ).start()
 
 import pytest
-import logging
-import tempfile
-import shutil
-import os
-from mycodo.databases.utils import session_scope
-from mycodo.databases.mycodo_db.models import User
-
-
-def uri_to_path(uri):
-    """ splits a URI back into a path """
-    return str(uri).split('sqlite:///')[1]
+from config import TestConfig
+from mycodo_flask.app import create_app
+from mycodo_flask.extensions import db as _db
+from databases.models import User
+from webtest import TestApp
 
 
 @pytest.yield_fixture()
-def tmp_file():
-    """
-    make a tmp file in an empty tmp dir and
-    remove it after it is used
-    """
+def app():
+    """Create a flask app test fixture """
+    _app = create_app(config=TestConfig)
 
-    parent_dir = tempfile.mkdtemp()
-    _, tmp_path = tempfile.mkstemp(dir=parent_dir)
+    ctx = _app.test_request_context()
+    ctx.push()
 
-    yield tmp_path
+    yield _app
 
-    if os.path.isdir(parent_dir):
-        shutil.rmtree(parent_dir)
+    ctx.pop()
 
 
 @pytest.fixture()
-def db_config(mycodo_db_uri):
-    """ Creates a config object to setup and databases during tests """
+def testapp(app):
+    """ A basic web app
 
-    class Config(object):
-        SQL_DATABASE_MYCODO = uri_to_path(mycodo_db_uri)
-        MYCODO_DB_PATH = mycodo_db_uri
-
-    return Config
+    :param app: flask app
+    :return: webtest.TestApp
+    """
+    create_admin_user(app.config['MYCODO_DB_PATH'])
+    return TestApp(app)
 
 
 @pytest.fixture()
-def mycodo_db_uri(tmp_file):
-    """ returns the sqlalchemy URI as the MYCODO_DB_PATH """
-    return ''.join(['sqlite:///', tmp_file, '_mycodo_db'])
+def testapp_no_admin_user(app):
+    """ A basic web app
+
+    :param app: flask app
+    :return: webtest.TestApp
+    """
+    return TestApp(app)
 
 
-def create_admin_user(mycodo_db_uri):
+def login_user(app, username, password):
+    """
+    returns a test context with a modified
+    session for the user login status
+
+    :returns: None
+    """
+
+    res = app.get('/login')
+    form = res.forms['login_form']
+
+    form['username'] = username
+    form['password'] = password
+    form.submit().maybe_follow()
+
+    return None
+
+
+@pytest.yield_fixture()
+def db(app):
+    _db.app = app
+    _db.create_all()
+    yield _db
+    _db.drop_all()
+
+
+def create_admin_user(db):
     """ mycodo_flask exits if there is no user called admin. So we create one """
-
-    with session_scope(mycodo_db_uri) as db_session:
-        if not db_session.query(User).filter_by(user_role=1).count():
-            logging.info("--> Creating new 'test' user as an admin")
-            db_session.add(User(user_name='test',
-                                user_role=1))
-            db_session.commit()
-        else:
-            logging.warning("--> Dirty User DB: Admin user was already setup in: '{uri}'".format(uri=mycodo_db_uri))
+    User(user_name='test', user_role=1).save()

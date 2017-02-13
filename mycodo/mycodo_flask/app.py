@@ -29,18 +29,10 @@ from flask import request
 from flask_babel import Babel
 from flask_sslify import SSLify
 
-from init_databases import create_dbs
-from mycodo.config import LANGUAGES
-from mycodo.config import ProdConfig
-from mycodo.databases.mycodo_db.models import Misc
-from mycodo.mycodo_flask import admin_routes
-from mycodo.mycodo_flask import authentication_routes
-from mycodo.mycodo_flask import general_routes
-from mycodo.mycodo_flask import method_routes
-from mycodo.mycodo_flask import page_routes
-from mycodo.mycodo_flask import settings_routes
-from .extensions import db
-from .extensions import influx_db
+from config import LANGUAGES
+from config import ProdConfig
+from mycodo_flask.extensions import influx_db
+from mycodo_flask.extensions import db
 
 
 def create_app(config=ProdConfig):
@@ -59,18 +51,26 @@ def create_app(config=ProdConfig):
     register_extensions(app)
     register_blueprints(app)
 
+    # Check user option to force all web connections to use SSL
+    with app.app_context():
+        from databases.models import Misc
+        db.app = app
+        db.create_all()
+        misc = Misc.query.first()
+        if misc and misc.force_https:
+            SSLify(app)
+
     # Translations
     babel = Babel(app)
 
     @babel.localeselector
     def get_locale():
         misc = Misc.query.first()
-        if misc.language != '':
+        if misc and misc.language != '':
             for key, _ in LANGUAGES.items():
                 if key == misc.language:
                     return key
         return request.accept_languages.best_match(LANGUAGES.keys())
-
     return app
 
 
@@ -80,21 +80,22 @@ def register_extensions(_app):
 
     # create the databases if needed
     db.init_app(_app)
-    create_dbs(config=_app.config, exit_when_done=False)
+    # create_dbs(config=_app.config, exit_when_done=False)
 
     # attach influx db
     influx_db.init_app(_app)
 
-    # Check user option to force all web connections to use SSL
-    misc = Misc.query.first()
-    force_https = misc.force_https
-
-    if force_https:
-        SSLify(_app)
-
 
 def register_blueprints(_app):
     """ register blueprints to the app """
+
+    from mycodo_flask import admin_routes
+    from mycodo_flask import authentication_routes
+    from mycodo_flask import general_routes
+    from mycodo_flask import method_routes
+    from mycodo_flask import page_routes
+    from mycodo.mycodo_flask import settings_routes
+
     _app.register_blueprint(admin_routes.blueprint)  # register admin views
     _app.register_blueprint(authentication_routes.blueprint)  # register login/logout views
     _app.register_blueprint(general_routes.blueprint)  # register general routes

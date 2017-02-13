@@ -1,7 +1,7 @@
 # coding=utf-8
 """ A collection of model factories using factory boy """
 import factory
-from mycodo.databases.mycodo_db import models
+from mycodo.databases.models import models
 
 
 class SensorFactory(factory.Factory):

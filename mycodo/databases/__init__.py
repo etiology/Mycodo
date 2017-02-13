@@ -21,3 +21,41 @@
 #  along with Mycodo. If not, see <http://www.gnu.org/licenses/>.
 #
 #  Contact at kylegabriel.com
+from mycodo_flask.extensions import db
+from flask import current_app
+from uuid import uuid4
+
+
+class CRUDMixin(object):
+    """
+    Basic Create, Read, Update and Delete methods
+    Models that inherit from this class automatically get these CRUD methods
+    """
+
+    def save(self):
+        """ creates the model in the database """
+
+        try:
+            db.session.add(self)
+            db.session.commit()
+            return self
+        except Exception as error:
+            db.session.rollback()
+            current_app.logging.error(
+                "Unable to save {model} due to error: {err}".format(
+                    model=self, err=error))
+            raise error
+
+    def delete(self, session=db.session):
+        """ deletes the record from the database """
+        try:
+            session.delete(self)
+            session.commit()
+        except Exception as error:
+            current_app.logger.error(
+                "Failed to delete '{record}' due to error: '{err}'".format(
+                    record=self, err=error))
+
+
+def set_uuid():
+    return str(uuid4())

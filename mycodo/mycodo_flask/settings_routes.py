@@ -1,51 +1,32 @@
 # coding=utf-8
 """ collection of Page endpoints """
-import logging
 import operator
 
-from flask import (
-    flash,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for
-)
-from flask_babel import gettext
+from flask import current_app
+from flask import redirect
+from flask import render_template
+from flask import request
+from flask import session
+from flask import url_for
 from flask.blueprints import Blueprint
 
-# Classes
-from mycodo.databases.mycodo_db.models import (
-    Camera,
-    Misc,
-    Relay,
-    Role,
-    SMTP,
-    User
-)
-
-# Functions
+from config import CAMERAS_SUPPORTED
+from config import LANGUAGES
+from databases.models import Camera
+from databases.models import Misc
+from databases.models import Relay
+from databases.models import Role
+from databases.models import SMTP
+from databases.models import User
 from mycodo import flaskforms
-from mycodo import flaskutils
 from mycodo.devices.camera import count_cameras_opencv
 
-# Config
-from config import (
-    CAMERAS_SUPPORTED,
-    LANGUAGES
-)
+from mycodo.mycodo_flask.general_routes import inject_mycodo_version
+# from mycodo import flaskutils
+# from mycodo.mycodo_flask.general_routes import logged_in
 
-from mycodo.mycodo_flask.general_routes import (
-    inject_mycodo_version,
-    logged_in
-)
 
-logger = logging.getLogger('mycodo.mycodo_flask.settings')
-
-blueprint = Blueprint('settings_routes',
-                      __name__,
-                      static_folder='../static',
-                      template_folder='../templates')
+blueprint = Blueprint('settings_routes', __name__, static_folder='../static', template_folder='../templates')
 
 
 @blueprint.context_processor
@@ -102,8 +83,7 @@ def settings_camera():
         if 'start_x=1' in open('/boot/config.txt').read():
             pi_camera_enabled = True
     except IOError as e:
-        logger.error("Camera IOError raised in '/settings/camera' endpoint: "
-                     "{err}".format(err=e))
+        current_app.logger.error("Camera IOError raised in '/settings/camera' endpoint: {err}".format(err=e))
 
     if request.method == 'POST':
         if form_camera.camera_add.data:

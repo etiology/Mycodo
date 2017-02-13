@@ -141,8 +141,7 @@ class ProdConfig(object):
 
 class TestConfig(object):
     """ Testing Configuration """
-    SQL_DATABASE_MYCODO = ''  # defined later when tests run
-    MYCODO_DB_PATH = ''  # defined later when tests run
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'  # in-memory db
 
     TESTING = True
     DEBUG = True

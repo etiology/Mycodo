@@ -4,37 +4,27 @@ import logging
 import os
 import subprocess
 
-from flask import (
-    Blueprint,
-    redirect,
-    render_template,
-    flash,
-    request,
-    session,
-    url_for
-)
+from flask import Blueprint
+from flask import flash
+from flask import redirect
+from flask import render_template
+from flask import request
+from flask import session
+from flask import url_for
 from flask_babel import gettext
 from pkg_resources import parse_version
 
-# Functions
+from config import INSTALL_DIRECTORY
+from config import MYCODO_VERSION
+from config import STATS_CSV
 from mycodo import flaskforms
 from mycodo import flaskutils
-from mycodo.mycodo_flask.general_routes import (
-    inject_mycodo_version,
-    logged_in
-)
+from mycodo.mycodo_flask.general_routes import inject_mycodo_version
+from mycodo.mycodo_flask.authentication_routes import logged_in
+from utils.github_release_info import github_releases
 from utils.statistics import return_stat_file_dict
 from utils.system_pi import internet
-from utils.github_release_info import github_releases
 
-# Config
-from config import (
-    INSTALL_DIRECTORY,
-    MYCODO_VERSION,
-    STATS_CSV
-)
-
-logger = logging.getLogger('mycodo.mycodo_flask.admin')
 
 blueprint = Blueprint(
     'admin_routes',

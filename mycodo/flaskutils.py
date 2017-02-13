@@ -24,27 +24,10 @@ from flask import (
 from flask_babel import gettext
 from RPi import GPIO
 
-# Classes
-from databases.mycodo_db.models import (
-    db,
-    Camera,
-    DisplayOrder,
-    Graph,
-    LCD,
-    Method,
-    MethodData,
-    Misc,
-    PID,
-    Relay,
-    RelayConditional,
-    Remote,
-    Role,
-    SMTP,
-    Sensor,
-    SensorConditional,
-    Timer,
-    User
-)
+from mycodo_flask.extensions import db
+
+import databases
+
 from mycodo_client import DaemonControl
 
 # Functions
@@ -179,7 +162,7 @@ def method_create(form_create_method, method_id):
     error = []
 
     try:
-        new_method = Method()
+        new_method = databases.models.Method()
         new_method.method_id = method_id
         if form_create_method.name.data:
             new_method.name = form_create_method.name.data
@@ -212,19 +195,19 @@ def method_create(form_create_method, method_id):
 def method_add(form_add_method, method):
     action = '{action} {controller}'.format(
         action=gettext("Add"),
-        controller=gettext("Method"))
+        controller=gettext("databases.models.Method"))
     error = []
 
     try:
         # Validate input time data
-        this_method = method.filter(Method.method_id == form_add_method.method_id.data)
-        this_method = this_method.filter(Method.method_order == 0).first()
+        this_method = method.filter(databases.models.Method.method_id == form_add_method.method_id.data)
+        this_method = this_method.filter(databases.models.Method.method_order == 0).first()
         if validate_method_data(form_add_method, this_method):
             return 1
 
         if this_method.method_type == 'DailySine':
-            mod_method = Method.query.filter(
-                Method.method_id == form_add_method.method_id.data).first()
+            mod_method = databases.models.Method.query.filter(
+                databases.models.Method.method_id == form_add_method.method_id.data).first()
             mod_method.amplitude = form_add_method.amplitude.data
             mod_method.frequency = form_add_method.frequency.data
             mod_method.shift_angle = form_add_method.shiftAngle.data
@@ -240,8 +223,8 @@ def method_add(form_add_method, method):
             if form_add_method.x0.data <= form_add_method.x3.data:
                 flash(gettext("Error: X0 must be greater than X3."), "error")
                 return 1
-            mod_method = Method.query.filter(
-                Method.method_id == form_add_method.method_id.data).first()
+            mod_method = databases.models.Method.query.filter(
+                databases.models.Method.method_id == form_add_method.method_id.data).first()
             mod_method.shift_angle = form_add_method.shiftAngle.data
             mod_method.x0 = form_add_method.x0.data
             mod_method.y0 = form_add_method.y0.data
@@ -268,10 +251,10 @@ def method_add(form_add_method, method):
 
             if this_method.method_type in ['Date', 'Daily']:
                 # Check if the start time comes after the last entry's end time
-                last_method = method.filter(Method.method_id == this_method.method_id)
-                last_method = last_method.filter(Method.method_order > 0)
-                last_method = last_method.filter(Method.relay_id == None)
-                last_method = last_method.order_by(Method.method_order.desc()).first()
+                last_method = method.filter(databases.models.Method.method_id == this_method.method_id)
+                last_method = last_method.filter(databases.models.Method.method_order > 0)
+                last_method = last_method.filter(databases.models.Method.relay_id == None)
+                last_method = last_method.order_by(databases.models.Method.method_order.desc()).first()
                 if last_method is not None:
                     if this_method.method_type == 'Date':
                         last_method_end_time = datetime.strptime(last_method.time_end,
@@ -298,11 +281,11 @@ def method_add(form_add_method, method):
                 start_time = datetime.strptime(form_add_method.relayDailyTime.data,
                                                '%H:%M:%S')
 
-        new_method = Method()
+        new_method = databases.models.Method()
         new_method.method_id = form_add_method.method_id.data
 
         # Get last number in ordered list, increment for new entry
-        method_last = method.order_by(Method.method_order.desc()).first()
+        method_last = method.order_by(databases.models.Method.method_order.desc()).first()
         new_method.method_order = method_last.method_order+1
 
         if this_method.method_type == 'Date':
@@ -366,32 +349,31 @@ def method_add(form_add_method, method):
 def method_mod(form_mod_method, method):
     action = '{action} {controller}'.format(
         action=gettext("Modify"),
-        controller=gettext("Method"))
+        controller=gettext("databases.models.Method"))
     error = []
 
     try:
         if form_mod_method.Delete.data:
-            delete_entry_with_id(Method,
-                                 form_mod_method.method_id.data)
+            delete_entry_with_id(databases.models.Method, form_mod_method.method_id.data)
             return 0
 
         if form_mod_method.name.data:
-            mod_method = Method.query.filter(
-                Method.method_id == form_mod_method.method_id.data)
-            mod_method = mod_method.filter(Method.method_order == 0).first()
+            mod_method = databases.models.Method.query.filter(
+                databases.models.Method.method_id == form_mod_method.method_id.data)
+            mod_method = mod_method.filter(databases.models.Method.method_order == 0).first()
             mod_method.name = form_mod_method.name.data
             db.session.commit()
             return 0
 
         # Ensure data data is valid
-        this_method = method.filter(Method.id == form_mod_method.method_id.data).first()
-        method_set = method.filter(Method.method_id == this_method.method_id)
-        method_set = method_set.filter(Method.method_order == 0).first()
+        this_method = method.filter(databases.models.Method.id == form_mod_method.method_id.data).first()
+        method_set = method.filter(databases.models.Method.method_id == this_method.method_id)
+        method_set = method_set.filter(databases.models.Method.method_order == 0).first()
         if validate_method_data(form_mod_method, method_set):
             return 1
 
-        mod_method = Method.query.filter(
-            Method.id == form_mod_method.method_id.data).first()
+        mod_method = databases.models.Method.query.filter(
+            databases.models.Method.id == form_mod_method.method_id.data).first()
 
         if form_mod_method.method_select.data == 'setpoint':
             if method_set.method_type == 'Date':
@@ -402,10 +384,10 @@ def method_mod(form_mod_method, method):
                 # and the end time comes before the next entry's start time
                 # method_id_set is the id given to all method entries, 'method_id', not 'id'
 
-                previous_method = method.order_by(Method.method_order.desc()).filter(
-                    Method.method_order < this_method.method_order).first()
-                next_method = method.order_by(Method.method_order.asc()).filter(
-                    Method.method_order > this_method.method_order).first()
+                previous_method = method.order_by(databases.models.Method.method_order.desc()).filter(
+                    databases.models.Method.method_order < this_method.method_order).first()
+                next_method = method.order_by(databases.models.Method.method_order.asc()).filter(
+                    databases.models.Method.method_order > this_method.method_order).first()
 
                 if previous_method is not None and previous_method.time_end is not None:
                     previous_end_time = datetime.strptime(
@@ -467,11 +449,11 @@ def method_mod(form_mod_method, method):
 def method_del(method_id):
     action = '{action} {controller}'.format(
         action=gettext("Delete"),
-        controller=gettext("Method"))
+        controller=gettext("databases.models.Method"))
     error = []
 
     try:
-        delete_entry_with_id(Method,
+        delete_entry_with_id(databases.models.Method,
                              method_id)
     except Exception as except_msg:
         error.append(except_msg)
@@ -525,7 +507,7 @@ def remote_host_add(form_setup, display_order):
             if pw_check['status']:
                 flash(pw_check['message'], "error")
                 return 1
-            new_remote_host = Remote()
+            new_remote_host = databases.models.Remote()
             new_remote_host.host = form_setup.host.data
             new_remote_host.username = form_setup.username.data
             new_remote_host.password_hash = pw_check['message']
@@ -539,7 +521,7 @@ def remote_host_add(form_setup, display_order):
                               uuid=new_remote_host.unique_id),
                       "success")
 
-                DisplayOrder.query.first().remote_host = add_display_order(
+                databases.models.DisplayOrder.query.first().remote_host = add_display_order(
                     display_order, new_remote_host.id)
                 db.session.commit()
             except sqlalchemy.exc.OperationalError as except_msg:
@@ -560,11 +542,11 @@ def remote_host_del(form_setup):
         return redirect(url_for('general_routes.home'))
 
     try:
-        delete_entry_with_id(Remote,
+        delete_entry_with_id(databases.models.Remote,
                              form_setup.remote_id.data)
-        display_order = csv_to_list_of_int(DisplayOrder.query.first().remote_host)
+        display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().remote_host)
         display_order.remove(int(form_setup.remote_id.data))
-        DisplayOrder.query.first().remote_host = list_to_csv(display_order)
+        databases.models.DisplayOrder.query.first().remote_host = list_to_csv(display_order)
         db.session.commit()
     except Exception as except_msg:
         flash(gettext("Remote Host Error: %(msg)s", msg=except_msg), "error")
@@ -635,17 +617,17 @@ def activate_deactivate_controller(controller_action,
 
     try:
         if controller_type == 'LCD':
-            mod_controller = LCD.query.filter(
-                LCD.id == int(controller_id)).first()
+            mod_controller = databases.models.LCD.query.filter(
+                databases.models.LCD.id == int(controller_id)).first()
         elif controller_type == 'PID':
-            mod_controller = PID.query.filter(
-                PID.id == int(controller_id)).first()
+            mod_controller = databases.models.PID.query.filter(
+                databases.models.PID.id == int(controller_id)).first()
         elif controller_type == 'Sensor':
-            mod_controller = Sensor.query.filter(
-                Sensor.id == int(controller_id)).first()
+            mod_controller = databases.models.Sensor.query.filter(
+                databases.models.Sensor.id == int(controller_id)).first()
         elif controller_type == 'Timer':
-            mod_controller = Timer.query.filter(
-                Timer.id == int(controller_id)).first()
+            mod_controller = databases.models.Timer.query.filter(
+                databases.models.Timer.id == int(controller_id)).first()
         mod_controller.is_activated = activated
         db.session.commit()
 
@@ -796,7 +778,7 @@ def graph_add(form_add_graph, display_order):
     if (form_add_graph.name.data and form_add_graph.width.data and
             form_add_graph.height.data and form_add_graph.xAxisDuration.data and
             form_add_graph.refreshDuration.data):
-        new_graph = Graph()
+        new_graph = databases.models.Graph()
         new_graph.name = form_add_graph.name.data
         if form_add_graph.pidIDs.data:
             pid_ids_joined = ",".join(str(form_add_graph.pidIDs.data))
@@ -821,7 +803,7 @@ def graph_add(form_add_graph, display_order):
                 id=new_graph.id),
                 "success")
 
-            DisplayOrder.query.first().graph = add_display_order(
+            databases.models.DisplayOrder.query.first().graph = add_display_order(
                 display_order, new_graph.id)
             db.session.commit()
         except sqlalchemy.exc.OperationalError as except_msg:
@@ -862,8 +844,8 @@ def graph_mod(form_mod_graph, request_form):
         sorted_colors_string = ",".join(short_list)
 
         try:
-            mod_graph = Graph.query.filter(
-                Graph.id == form_mod_graph.graph_id.data).first()
+            mod_graph = databases.models.Graph.query.filter(
+                databases.models.Graph.id == form_mod_graph.graph_id.data).first()
             mod_graph.custom_colors = sorted_colors_string
             mod_graph.use_custom_colors = form_mod_graph.use_custom_colors.data
             mod_graph.name = form_mod_graph.name.data
@@ -901,11 +883,11 @@ def graph_del(form_del_graph):
 
     if form_del_graph.validate():
         try:
-            delete_entry_with_id(Graph,
+            delete_entry_with_id(databases.models.Graph,
                                  form_del_graph.graph_id.data)
-            display_order = csv_to_list_of_int(DisplayOrder.query.first().graph)
+            display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().graph)
             display_order.remove(int(form_del_graph.graph_id.data))
-            DisplayOrder.query.first().graph = list_to_csv(display_order)
+            databases.models.DisplayOrder.query.first().graph = list_to_csv(display_order)
             db.session.commit()
         except Exception as except_msg:
             error.append(except_msg)
@@ -933,7 +915,7 @@ def graph_reorder(form_order_graph, display_order):
                     form_order_graph.orderGraph_id.data,
                     'down')
             if status == 'success':
-                order_graph = DisplayOrder.query.first()
+                order_graph = databases.models.DisplayOrder.query.first()
                 order_graph.graph = ','.join(reord_list)
                 db.session.commit()
             else:
@@ -958,9 +940,9 @@ def lcd_add(form_add_lcd):
     if form_add_lcd.validate():
         for _ in range(0, form_add_lcd.numberLCDs.data):
             try:
-                new_lcd = LCD().save
-                display_order = csv_to_list_of_int(DisplayOrder.query.first().lcd)
-                DisplayOrder.query.first().lcd = add_display_order(
+                new_lcd = databases.models.LCD().save
+                display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().lcd)
+                databases.models.DisplayOrder.query.first().lcd = add_display_order(
                     display_order, new_lcd.id)
                 db.session.commit()
             except sqlalchemy.exc.OperationalError as except_msg:
@@ -980,14 +962,14 @@ def lcd_mod(form_mod_lcd):
 
     if form_mod_lcd.validate():
         try:
-            mod_lcd = LCD.query.filter(
-                LCD.id == form_mod_lcd.modLCD_id.data).first()
+            mod_lcd = databases.models.LCD.query.filter(
+                databases.models.LCD.id == form_mod_lcd.modLCD_id.data).first()
             if mod_lcd.is_activated:
                 flash(gettext("Deactivate LCD controller before modifying"
                               " its settings."), "error")
                 return redirect('/lcd')
-            mod_lcd = LCD.query.filter(
-                LCD.id == form_mod_lcd.modLCD_id.data).first()
+            mod_lcd = databases.models.LCD.query.filter(
+                databases.models.LCD.id == form_mod_lcd.modLCD_id.data).first()
             mod_lcd.name = form_mod_lcd.modName.data
             mod_lcd.location = form_mod_lcd.modLocation.data
             mod_lcd.multiplexer_address = form_mod_lcd.modMultiplexAddress.data
@@ -1035,11 +1017,11 @@ def lcd_del(form_del_lcd):
 
     if form_del_lcd.validate():
         try:
-            delete_entry_with_id(LCD,
+            delete_entry_with_id(databases.models.LCD,
                                  form_del_lcd.delLCD_id.data)
-            display_order = csv_to_list_of_int(DisplayOrder.query.first().lcd)
+            display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().lcd)
             display_order.remove(int(form_del_lcd.delLCD_id.data))
-            DisplayOrder.query.first().lcd = list_to_csv(display_order)
+            databases.models.DisplayOrder.query.first().lcd = list_to_csv(display_order)
             db.session.commit()
         except Exception as except_msg:
             error.append(except_msg)
@@ -1067,7 +1049,7 @@ def lcd_reorder(form_order_lcd, display_order):
                     form_order_lcd.orderLCD_id.data,
                     'down')
             if status == 'success':
-                DisplayOrder.query.first().lcd = ','.join(reord_list)
+                databases.models.DisplayOrder.query.first().lcd = ','.join(reord_list)
                 db.session.commit()
             else:
                 error.append(reord_list)
@@ -1087,8 +1069,8 @@ def lcd_activate(form_activate_lcd):
     if form_activate_lcd.validate():
         try:
             # All sensors the LCD depends on must be active to activate the LCD
-            lcd = LCD.query.filter(
-                LCD.id == form_activate_lcd.activateLCD_id.data).first()
+            lcd = databases.models.LCD.query.filter(
+                databases.models.LCD.id == form_activate_lcd.activateLCD_id.data).first()
             if lcd.y_lines == 2:
                 lcd_lines = [lcd.line_1_sensor_id,
                              lcd.line_2_sensor_id]
@@ -1098,8 +1080,8 @@ def lcd_activate(form_activate_lcd):
                              lcd.line_3_sensor_id,
                              lcd.line_4_sensor_id]
             # Filter only sensors that will be displayed
-            sensor = Sensor.query.filter(
-                Sensor.id.in_(lcd_lines)).all()
+            sensor = databases.models.Sensor.query.filter(
+                databases.models.Sensor.id.in_(lcd_lines)).all()
             # Check if any sensors are not active
             for each_sensor in sensor:
                 if not each_sensor.is_activated:
@@ -1148,9 +1130,9 @@ def pid_add(form_add_pid):
     if form_add_pid.validate():
         for _ in range(0, form_add_pid.numberPIDs.data):
             try:
-                new_pid = PID().save()
-                display_order = csv_to_list_of_int(DisplayOrder.query.first().pid)
-                DisplayOrder.query.first().pid = add_display_order(
+                new_pid = databases.models.PID().save()
+                display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().pid)
+                databases.models.DisplayOrder.query.first().pid = add_display_order(
                     display_order, new_pid.id)
                 db.session.commit()
             except sqlalchemy.exc.OperationalError as except_msg:
@@ -1170,8 +1152,8 @@ def pid_mod(form_mod_pid):
 
     if form_mod_pid.validate():
         try:
-            sensor = Sensor.query.filter(
-                Sensor.id == form_mod_pid.modSensorID.data).first()
+            sensor = databases.models.Sensor.query.filter(
+                databases.models.Sensor.id == form_mod_pid.modSensorID.data).first()
             if not sensor:
                 error.append(gettext("A valid sensor ID is required"))
             elif (
@@ -1207,8 +1189,8 @@ def pid_mod(form_mod_pid):
                     "Select a Measure Type that is compatible with the "
                     "chosen sensor"))
             if not error:
-                mod_pid = PID.query.filter(
-                    PID.id == form_mod_pid.modPID_id.data).first()
+                mod_pid = databases.models.PID.query.filter(
+                    databases.models.PID.id == form_mod_pid.modPID_id.data).first()
                 mod_pid.name = form_mod_pid.modName.data
                 mod_pid.sensor_id = form_mod_pid.modSensorID.data
                 mod_pid.measurement = form_mod_pid.modMeasurement.data
@@ -1249,16 +1231,16 @@ def pid_del(pid_id):
     error = []
 
     try:
-        pid = PID.query.filter(
-            PID.id == pid_id).first()
+        pid = databases.models.PID.query.filter(
+            databases.models.PID.id == pid_id).first()
         if pid.is_activated:
             pid_deactivate(pid_id)
 
-        delete_entry_with_id(PID,
+        delete_entry_with_id(databases.models.PID,
                              pid_id)
-        display_order = csv_to_list_of_int(DisplayOrder.query.first().pid)
+        display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().pid)
         display_order.remove(int(pid_id))
-        DisplayOrder.query.first().pid = list_to_csv(display_order)
+        databases.models.DisplayOrder.query.first().pid = list_to_csv(display_order)
         db.session.commit()
     except Exception as except_msg:
         error.append(except_msg)
@@ -1278,7 +1260,7 @@ def pid_reorder(pid_id, display_order, direction):
         elif direction == 'down':
             status, reord_list = reorder_list(display_order, pid_id, 'down')
         if status == 'success':
-            DisplayOrder.query.first().pid = ','.join(reord_list)
+            databases.models.DisplayOrder.query.first().pid = ','.join(reord_list)
             db.session.commit()
         else:
             error.append(reord_list)
@@ -1289,8 +1271,8 @@ def pid_reorder(pid_id, display_order, direction):
 
 
 def has_required_pid_values(pid_id):
-    pid = PID.query.filter(
-        PID.id == pid_id).first()
+    pid = databases.models.PID.query.filter(
+        databases.models.PID.id == pid_id).first()
     error = False
     # TODO: Add more settings-checks before allowing controller to be activated
     if not pid.sensor_id:
@@ -1317,10 +1299,10 @@ def pid_activate(pid_id):
     error = []
 
     # Check if associated sensor is activated
-    pid = PID.query.filter(
-        PID.id == pid_id).first()
-    sensor = Sensor.query.filter(
-        Sensor.id == pid.sensor_id).first()
+    pid = databases.models.PID.query.filter(
+        databases.models.PID.id == pid_id).first()
+    sensor = databases.models.Sensor.query.filter(
+        databases.models.Sensor.id == pid.sensor_id).first()
 
     if not sensor.is_activated:
         error.append(gettext(
@@ -1329,8 +1311,8 @@ def pid_activate(pid_id):
     else:
         # Signal the duration method can run because it's been
         # properly initiated (non-power failure)
-        mod_method = Method.query.filter(
-            Method.id == pid.method_id).first()
+        mod_method = databases.models.Method.query.filter(
+            databases.models.Method.id == pid.method_id).first()
         if mod_method and mod_method.method_type == 'Duration':
             mod_method.method_start_time = 'Ready'
             db.session.commit()
@@ -1344,8 +1326,8 @@ def pid_activate(pid_id):
 
 
 def pid_deactivate(pid_id):
-    pid = PID.query.filter(
-        PID.id == pid_id).first()
+    pid = databases.models.PID.query.filter(
+        databases.models.PID.id == pid_id).first()
     pid.is_activated = False
     db.session.commit()
     time.sleep(1)
@@ -1360,8 +1342,8 @@ def pid_manipulate(pid_id, action):
         return 1
 
     try:
-        mod_pid = PID.query.filter(
-            PID.id == pid_id).first()
+        mod_pid = databases.models.PID.query.filter(
+            databases.models.PID.id == pid_id).first()
         if action == 'Hold':
             mod_pid.is_held = True
             mod_pid.is_paused = False
@@ -1438,9 +1420,9 @@ def relay_add(form_add_relay):
     if form_add_relay.validate():
         for _ in range(0, form_add_relay.numberRelays.data):
             try:
-                new_relay = Relay().save()
-                display_order = csv_to_list_of_int(DisplayOrder.query.first().relay)
-                DisplayOrder.query.first().relay = add_display_order(
+                new_relay = databases.models.Relay().save()
+                display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().relay)
+                databases.models.DisplayOrder.query.first().relay = add_display_order(
                     display_order, new_relay.id)
                 db.session.commit()
                 manipulate_relay(gettext('Add'), new_relay.id)
@@ -1461,8 +1443,8 @@ def relay_mod(form_relay):
 
     if form_relay.validate():
         try:
-            mod_relay = Relay.query.filter(
-                Relay.id == form_relay.relay_id.data).first()
+            mod_relay = databases.models.Relay.query.filter(
+                databases.models.Relay.id == form_relay.relay_id.data).first()
             mod_relay.name = form_relay.name.data
             setup_pin = False
             if mod_relay.pin is not form_relay.gpio.data:
@@ -1490,11 +1472,11 @@ def relay_del(form_relay):
 
     if form_relay.validate():
         try:
-            delete_entry_with_id(Relay,
+            delete_entry_with_id(databases.models.Relay,
                                  form_relay.relay_id.data)
-            display_order = csv_to_list_of_int(DisplayOrder.query.first().relay)
+            display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().relay)
             display_order.remove(int(form_relay.relay_id.data))
-            DisplayOrder.query.first().relay = list_to_csv(display_order)
+            databases.models.DisplayOrder.query.first().relay = list_to_csv(display_order)
             db.session.commit()
             manipulate_relay(gettext('Delete'), form_relay.relay_id.data)
         except Exception as except_msg:
@@ -1523,7 +1505,7 @@ def relay_reorder(form_relay, display_order):
                     form_relay.relay_id.data,
                     'down')
             if status == 'success':
-                DisplayOrder.query.first().relay = ','.join(reord_list)
+                databases.models.DisplayOrder.query.first().relay = ','.join(reord_list)
                 db.session.commit()
             else:
                 error.append(reord_list)
@@ -1547,7 +1529,7 @@ def relay_conditional_add(form_add_relay_cond):
     if form_add_relay_cond.validate():
         for _ in range(0, form_add_relay_cond.numberRelayConditionals.data):
             try:
-                RelayConditional().save
+                databases.models.RelayConditional().save
             except sqlalchemy.exc.OperationalError as except_msg:
                 error.append(except_msg)
             except sqlalchemy.exc.IntegrityError as except_msg:
@@ -1566,31 +1548,31 @@ def relay_conditional_mod(form_relay_cond):
             action = '{action} {controller}'.format(
                 action=gettext("Activate"),
                 controller=gettext("Relay Conditional"))
-            relay_cond = RelayConditional.query.filter(
-                RelayConditional.id == form_relay_cond.relay_id.data).first()
+            relay_cond = databases.models.RelayConditional.query.filter(
+                databases.models.RelayConditional.id == form_relay_cond.relay_id.data).first()
             relay_cond.is_activated = True
             db.session.commit()
         elif form_relay_cond.deactivate.data:
             action = '{action} {controller}'.format(
                 action=gettext("Deactivate"),
                 controller=gettext("Relay Conditional"))
-            relay_cond = RelayConditional.query.filter(
-                RelayConditional.id == form_relay_cond.relay_id.data).first()
+            relay_cond = databases.models.RelayConditional.query.filter(
+                databases.models.RelayConditional.id == form_relay_cond.relay_id.data).first()
             relay_cond.is_activated = False
             db.session.commit()
         elif form_relay_cond.delete.data:
             action = '{action} {controller}'.format(
                 action=gettext("Delete"),
                 controller=gettext("Relay Conditional"))
-            delete_entry_with_id(RelayConditional,
+            delete_entry_with_id(databases.models.RelayConditional,
                                  form_relay_cond.relay_id.data)
         elif (form_relay_cond.save.data and
                 form_relay_cond.validate()):
             action = '{action} {controller}'.format(
                 action=gettext("Modify"),
                 controller=gettext("Relay Conditional"))
-            mod_relay = RelayConditional.query.filter(
-                RelayConditional.id == form_relay_cond.relay_id.data).first()
+            mod_relay = databases.models.RelayConditional.query.filter(
+                databases.models.RelayConditional.id == form_relay_cond.relay_id.data).first()
             mod_relay.name = form_relay_cond.name.data
             mod_relay.if_relay_id = form_relay_cond.if_relay_id.data
             mod_relay.if_action = form_relay_cond.if_relay_action.data
@@ -1623,8 +1605,8 @@ def sensor_add(form_add_sensor):
 
     if form_add_sensor.validate():
         for _ in range(0, form_add_sensor.numberSensors.data):
-            display_order = csv_to_list_of_int(DisplayOrder.query.first().sensor)
-            new_sensor = Sensor()
+            display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().sensor)
+            new_sensor = databases.models.Sensor()
             new_sensor.device = form_add_sensor.sensor.data
             new_sensor.name = '{}'.format(form_add_sensor.sensor.data)
             if GPIO.RPI_INFO['P1_REVISION'] in [2, 3]:
@@ -1714,7 +1696,7 @@ def sensor_add(form_add_sensor):
             try:
                 new_sensor.save()
 
-                DisplayOrder.query.first().sensor = add_display_order(
+                databases.models.DisplayOrder.query.first().sensor = add_display_order(
                     display_order, new_sensor.id)
                 db.session.commit()
 
@@ -1740,8 +1722,8 @@ def sensor_mod(form_mod_sensor):
     error = []
 
     try:
-        mod_sensor = Sensor.query.filter(
-            Sensor.id == form_mod_sensor.modSensor_id.data).first()
+        mod_sensor = databases.models.Sensor.query.filter(
+            databases.models.Sensor.id == form_mod_sensor.modSensor_id.data).first()
 
         # if not form_mod_sensor.modLocation.data:
         #     error.append(gettext(
@@ -1802,8 +1784,8 @@ def sensor_del(form_mod_sensor):
     error = []
 
     try:
-        sensor = Sensor.query.filter(
-            Sensor.id == form_mod_sensor.modSensor_id.data).first()
+        sensor = databases.models.Sensor.query.filter(
+            databases.models.Sensor.id == form_mod_sensor.modSensor_id.data).first()
         if sensor.is_activated:
             sensor_deactivate_associated_controllers(
                 form_mod_sensor.modSensor_id.data)
@@ -1811,18 +1793,18 @@ def sensor_del(form_mod_sensor):
                 'deactivate', 'Sensor',
                 form_mod_sensor.modSensor_id.data)
 
-        sensor_cond = SensorConditional.query.all()
+        sensor_cond =databases.models. SensorConditional.query.all()
         for each_sensor_cond in sensor_cond:
             if each_sensor_cond.sensor_id == form_mod_sensor.modSensor_id.data:
-                delete_entry_with_id(SensorConditional,
+                delete_entry_with_iddatabases.models(databases.models.SensorConditional,
                                      each_sensor_cond.id)
 
-        delete_entry_with_id(Sensor,
+        delete_entry_with_id(databases.models.Sensor,
                              form_mod_sensor.modSensor_id.data)
         try:
-            display_order = csv_to_list_of_int(DisplayOrder.query.first().sensor)
+            display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().sensor)
             display_order.remove(int(form_mod_sensor.modSensor_id.data))
-            DisplayOrder.query.first().sensor = list_to_csv(display_order)
+            databases.models.DisplayOrder.query.first().sensor = list_to_csv(display_order)
         except:  # id not in list
             pass
         db.session.commit()
@@ -1847,7 +1829,7 @@ def sensor_reorder(form_mod_sensor, display_order):
             status, reord_list = reorder_list(
                 display_order, form_mod_sensor.modSensor_id.data, 'down')
         if status == 'success':
-            order_sensor = DisplayOrder.query.first()
+            order_sensor = databases.models.DisplayOrder.query.first()
             order_sensor.sensor = ','.join(reord_list)
             db.session.commit()
         elif status == 'error':
@@ -1859,8 +1841,8 @@ def sensor_reorder(form_mod_sensor, display_order):
 
 
 def sensor_activate(form_mod_sensor):
-    sensor = Sensor.query.filter(
-        Sensor.id == form_mod_sensor.modSensor_id.data).first()
+    sensor = databases.models.Sensor.query.filter(
+        databases.models.Sensor.id == form_mod_sensor.modSensor_id.data).first()
     if not sensor.location:
         flash("Cannot activate sensor without the GPIO/I2C Address/Port "
               "to communicate with it set.", "error")
@@ -1880,16 +1862,16 @@ def sensor_deactivate(form_mod_sensor):
 
 # Deactivate any active PID or LCD controllers using this sensor
 def sensor_deactivate_associated_controllers(sensor_id):
-    pid = (PID.query
-           .filter(PID.sensor_id == sensor_id)
-           .filter(PID.is_activated == True)
+    pid = (databases.models.PID.query
+           .filter(databases.models.PID.sensor_id == sensor_id)
+           .filter(databases.models.PID.is_activated == True)
            ).all()
     if pid:
         for each_pid in pid:
             activate_deactivate_controller('deactivate',
                                            'PID',
                                            each_pid.id)
-    lcd = LCD.query.filter(LCD.is_activated)
+    lcd = databases.models.LCD.query.filter(databases.models.LCD.is_activated)
     for each_lcd in lcd:
         if sensor_id in [each_lcd.line_1_sensor_id,
                          each_lcd.line_2_sensor_id,
@@ -1911,7 +1893,7 @@ def sensor_conditional_add(form_mod_sensor):
     error = []
 
     try:
-        new_sensor_cond = SensorConditional()
+        new_sensor_cond = databases.models.SensorConditional()
         new_sensor_cond.sensor_id = form_mod_sensor.modSensor_id.data
         new_sensor_cond.save()
         check_refresh_conditional(form_mod_sensor.modSensor_id.data,
@@ -1934,8 +1916,7 @@ def sensor_conditional_mod(form_mod_sensor_cond):
             action=gettext("Delete"),
             controller=gettext("Sensor Conditional"))
         try:
-            delete_entry_with_id(SensorConditional,
-                                 form_mod_sensor_cond.modCondSensor_id.data)
+            delete_entry_with_id(databases.models.SensorConditional, form_mod_sensor_cond.modCondSensor_id.data)
             check_refresh_conditional(
                 form_mod_sensor_cond.modSensor_id.data,
                 'del',
@@ -1953,8 +1934,8 @@ def sensor_conditional_mod(form_mod_sensor_cond):
                                      "required if the record and email "
                                      "option is selected"))
             else:
-                mod_sensor = SensorConditional.query.filter(
-                    SensorConditional.id == form_mod_sensor_cond.modCondSensor_id.data).first()
+                mod_sensor =databases.models. SensorConditional.query.filter(
+                    databases.models.SensorConditional.id == form_mod_sensor_cond.modCondSensor_id.data).first()
                 mod_sensor.name = form_mod_sensor_cond.modCondName.data
                 mod_sensor.period = form_mod_sensor_cond.Period.data
                 mod_sensor.measurement_type = form_mod_sensor_cond.MeasureType.data
@@ -1982,10 +1963,10 @@ def sensor_conditional_mod(form_mod_sensor_cond):
             action=gettext("Activate"),
             controller=gettext("Sensor Conditional"))
         try:
-            mod_sensor = SensorConditional.query.filter(
-                SensorConditional.id == form_mod_sensor_cond.modCondSensor_id.data).first()
-            sensor = Sensor.query.filter(
-                Sensor.id == mod_sensor.sensor_id).first()
+            mod_sensor = databases.models.SensorConditional.query.filter(
+                databases.models.SensorConditional.id == form_mod_sensor_cond.modCondSensor_id.data).first()
+            sensor = databases.models.Sensor.query.filter(
+                databases.models.Sensor.id == mod_sensor.sensor_id).first()
 
             device_specific_configured = False
             cond_configured = False
@@ -2026,8 +2007,8 @@ def sensor_conditional_mod(form_mod_sensor_cond):
             action=gettext("Deactivate"),
             controller=gettext("Sensor Conditional"))
         try:
-            mod_sensor = SensorConditional.query.filter(
-                SensorConditional.id == form_mod_sensor_cond.modCondSensor_id.data).first()
+            mod_sensor = databases.models.SensorConditional.query.filter(
+                databases.models.SensorConditional.id == form_mod_sensor_cond.modCondSensor_id.data).first()
             mod_sensor.is_activated = False
             db.session.commit()
             check_refresh_conditional(
@@ -2041,9 +2022,9 @@ def sensor_conditional_mod(form_mod_sensor_cond):
 
 
 def check_refresh_conditional(sensor_id, cond_mod, cond_id):
-    sensor = (Sensor.query
-              .filter(Sensor.id == sensor_id)
-              .filter(Sensor.is_activated == True)
+    sensor = (databases.models.Sensor.query
+              .filter(databases.models.Sensor.id == sensor_id)
+              .filter(databases.models.Sensor.is_activated == True)
               ).first()
     if sensor:
         control = DaemonControl()
@@ -2061,7 +2042,7 @@ def timer_add(form_add_timer, timer_type, display_order):
     error = []
 
     if form_add_timer.validate():
-        new_timer = Timer()
+        new_timer = databases.models.Timer()
         new_timer.name = form_add_timer.name.data
         new_timer.relay_id = form_add_timer.relayID.data
         if timer_type == 'time':
@@ -2087,7 +2068,7 @@ def timer_add(form_add_timer, timer_type, display_order):
         if not error:
             try:
                 new_timer.save()
-                DisplayOrder.query.first().timer = add_display_order(
+                databases.models.DisplayOrder.query.first().timer = add_display_order(
                     display_order, new_timer.id)
                 db.session.commit()
             except sqlalchemy.exc.OperationalError as except_msg:
@@ -2107,8 +2088,8 @@ def timer_mod(form_timer):
     error = []
 
     try:
-        mod_timer = Timer.query.filter(
-            Timer.id == form_timer.timer_id.data).first()
+        mod_timer = databases.models.Timer.query.filter(
+            databases.models.Timer.id == form_timer.timer_id.data).first()
         if mod_timer.is_activated:
             error.append(gettext("Deactivate timer controller before "
                                  "modifying its settings"))
@@ -2141,11 +2122,11 @@ def timer_del(form_timer):
     error = []
 
     try:
-        delete_entry_with_id(Timer,
+        delete_entry_with_id(databases.models.Timer,
                              form_timer.timer_id.data)
-        display_order = csv_to_list_of_int(DisplayOrder.query.first().timer)
+        display_order = csv_to_list_of_int(databases.models.DisplayOrder.query.first().timer)
         display_order.remove(int(form_timer.timer_id.data))
-        DisplayOrder.query.first().timer = list_to_csv(display_order)
+        databases.models.DisplayOrder.query.first().timer = list_to_csv(display_order)
         db.session.commit()
     except Exception as except_msg:
         error.append(except_msg)
@@ -2171,7 +2152,7 @@ def timer_reorder(form_timer, display_order):
                                               form_timer.timer_id.data,
                                               'down')
         if status == 'success':
-            DisplayOrder.query.first().timer = ','.join(reord_list)
+            databases.models.DisplayOrder.query.first().timer = ','.join(reord_list)
             db.session.commit()
         else:
             error.append(reord_list)
@@ -2202,7 +2183,7 @@ def user_add(form_add_user):
     error = []
 
     if form_add_user.validate():
-        new_user = User()
+        new_user = databases.models.User()
         if not test_username(form_add_user.addUsername.data):
             error.append(gettext(
                 "Invalid user name. Must be between 2 and 64 characters "
@@ -2220,8 +2201,8 @@ def user_add(form_add_user):
             new_user.user_name = form_add_user.addUsername.data
             new_user.user_email = form_add_user.addEmail.data
             new_user.set_password(form_add_user.addPassword.data)
-            role = Role.query.filter(
-                Role.name == form_add_user.addGroup.data).first().id
+            role = databases.models.Role.query.filter(
+                databases.models.Role.name == form_add_user.addGroup.data).first().id
             new_user.user_role = role
             new_user.user_theme = 'slate'
             try:
@@ -2243,8 +2224,8 @@ def user_mod(form_mod_user):
     error = []
 
     try:
-        mod_user = User.query.filter(
-            User.user_name == form_mod_user.modUsername.data).first()
+        mod_user = databases.models.User.query.filter(
+            databases.models.User.user_name == form_mod_user.modUsername.data).first()
         mod_user.user_email = form_mod_user.modEmail.data
         # Only change the password if it's entered in the form
         logout_user = False
@@ -2261,8 +2242,8 @@ def user_mod(form_mod_user):
                 error.append(gettext("Passwords do not match. Please try again."))
 
         if not error:
-            role = Role.query.filter(
-                Role.name == form_mod_user.modGroup.data).first().id
+            role = databases.models.Role.query.filter(
+                databases.models.Role.name == form_mod_user.modGroup.data).first().id
             mod_user.user_role = role
             mod_user.user_theme = form_mod_user.modTheme.data
             if session['user_name'] == form_mod_user.modUsername.data:
@@ -2306,7 +2287,7 @@ def settings_general_mod(form_mod_general):
 
     try:
         if form_mod_general.validate():
-            mod_misc = Misc.query.first()
+            mod_misc = databases.models.Misc.query.first()
             force_https = mod_misc.force_https
             mod_misc.language = form_mod_general.language.data
             mod_misc.force_https = form_mod_general.forceHTTPS.data
@@ -2343,7 +2324,7 @@ def settings_alert_mod(form_mod_alert):
 
     try:
         if form_mod_alert.validate():
-            mod_smtp = SMTP.query.one()
+            mod_smtp = databases.models.SMTP.query.one()
             if form_mod_alert.sendTestEmail.data:
                 send_email(
                     mod_smtp.host, mod_smtp.ssl, mod_smtp.port,
@@ -2380,8 +2361,8 @@ def camera_add(form_camera):
     error = []
 
     if form_camera.validate():
-        new_camera = Camera()
-        if Camera.query.filter(Camera.name == form_camera.name.data).count():
+        new_camera = databases.models.Camera()
+        if databases.models.Camera.query.filter(databases.models.Camera.name == form_camera.name.data).count():
             flash("You must choose a unique name", "error")
             return redirect(url_for('settings_routes.settings_camera'))
         new_camera.name = form_camera.name.data
@@ -2407,14 +2388,14 @@ def camera_mod(form_camera):
     error = []
 
     try:
-        if (Camera.query
-                    .filter(Camera.id != form_camera.camera_id.data)
-                    .filter(Camera.name == form_camera.name.data).count()):
+        if (databases.models.Camera.query
+                    .filter(databases.models.Camera.id != form_camera.camera_id.data)
+                    .filter(databases.models.Camera.name == form_camera.name.data).count()):
             flash("You must choose a unique name", "error")
             return redirect(url_for('settings_routes.settings_camera'))
 
-        mod_camera = Camera.query.filter(
-            Camera.id == form_camera.camera_id.data).first()
+        mod_camera = databases.models.Camera.query.filter(
+            databases.models.Camera.id == form_camera.camera_id.data).first()
         mod_camera.name = form_camera.name.data
         mod_camera.camera_type = form_camera.camera_type.data
         mod_camera.library = form_camera.library.data
@@ -2448,7 +2429,7 @@ def camera_del(form_camera):
         controller=gettext("Camera"))
     error = []
     try:
-        delete_entry_with_id(Camera,
+        delete_entry_with_id(databases.models.Camera,
                              int(form_camera.camera_id.data))
     except Exception as except_msg:
         error.append(except_msg)
@@ -2462,9 +2443,9 @@ def camera_del(form_camera):
 
 def authorized(session, role_name, role_id=None):
     if role_id:
-        user = User.query.filter(User.id == role_id).first()
+        user = databases.models.User.query.filter(databases.models.User.id == role_id).first()
     else:
-        user = User.query.filter(Role.name == role_name).first()
+        user = databases.models.User.query.filter(databases.models.Role.name == role_name).first()
     if user and user.role.name == session['user_role']:
             return True
     return False
@@ -2485,8 +2466,8 @@ def db_retrieve_table(table, first=False, device_id=''):
 def delete_user(username):
     """ Delete user from SQL database """
     try:
-        user = User.query.filter(
-            User.user_name == username).first()
+        user = databases.models.User.query.filter(
+            databases.models.User.user_name == username).first()
         user.delete(db.session)
         flash(gettext("Success: %(msg)s",
                       msg='{action} {user}'.format(
@@ -2635,18 +2616,18 @@ def test_sql():
     try:
         num_entries = 1000000
         factor_info = 25000
-        PID.query.delete()
+        databases.models.PID.query.delete()
         db.session.commit()
         logger.error("Starting SQL uuid generation test: "
                      "{n} entries...".format(n=num_entries))
-        before_count = PID.query.count()
+        before_count = databases.models.PID.query.count()
         run_times = []
         a = datetime.now()
-        for x in xrange(1, num_entries + 1):
-            db.session.add(PID())
+        for x in range(1, num_entries + 1):
+            db.session.add(databases.models.PID())
             if x % factor_info == 0:
                 db.session.commit()
-                after_count = PID.query.count()
+                after_count = databases.models.PID.query.count()
                 b = datetime.now()
                 run_times.append(float((b - a).total_seconds()))
                 logger.error("Run Time: {time:.2f} sec, "
@@ -2654,14 +2635,14 @@ def test_sql():
                              "Total entries: {tot}".format(
                                 time=run_times[-1],
                                 new=after_count - before_count,
-                                tot=PID.query.count()))
-                before_count = PID.query.count()
+                                tot=databases.models.PID.query.count()))
+                before_count = databases.models.PID.query.count()
                 a = datetime.now()
         avg_run_time = sum(run_times) / float(len(run_times))
         logger.error("Finished. Total: {tot} entries. "
                      "Averages: {avg:.2f} sec, "
                      "{epm:.2f} entries/min".format(
-                        tot=PID.query.count(),
+                        tot=databases.models.PID.query.count(),
                         avg=avg_run_time,
                         epm=(factor_info / avg_run_time) * 60.0))
     except Exception as msg:

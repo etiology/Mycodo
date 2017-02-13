@@ -1,42 +1,31 @@
 # coding=utf-8
 """ collection of Method endpoints """
-import logging
 import datetime
+import logging
 import random
 import string
 import time
 
-from flask import (
-    Blueprint,
-    flash,
-    jsonify,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for
-)
+from flask import Blueprint
+from flask import flash
+from flask import jsonify
+from flask import redirect
+from flask import render_template
+from flask import request
+from flask import session
+from flask import url_for
 from flask_babel import gettext
 
-# Classes
-from mycodo.databases.mycodo_db.models import (
-    Method,
-    MethodData,
-    Relay
-)
-
-# Functions
+from databases.models import Method
+from databases.models import MethodData
+from databases.models import Relay
 from mycodo import flaskforms
 from mycodo import flaskutils
-from mycodo.mycodo_flask.general_routes import (
-    inject_mycodo_version,
-    logged_in
-)
+from mycodo.mycodo_flask.authentication_routes import logged_in
+from mycodo.mycodo_flask.general_routes import inject_mycodo_version
+from mycodo.utils.method import bezier_curve_y_out
+from mycodo.utils.method import sine_wave_y_out
 from mycodo.utils.system_pi import get_sec
-from mycodo.utils.method import (
-    sine_wave_y_out,
-    bezier_curve_y_out
-)
 
 logger = logging.getLogger('mycodo.mycodo_flask.methods')
 

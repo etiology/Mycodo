@@ -3,11 +3,8 @@
 import mock
 # from flask import current_app
 
-from mycodo.databases.mycodo_db.models import Sensor
+from databases.models import Sensor
 from mycodo.tests.software_tests.factories_user import UserFactory
-# from mycodo.tests.software_tests.factories_mycodo import SensorFactory
-from mycodo.tests.software_tests.test_mycodo_flask.conftest import login_user
-# from mycodo.utils.database import db_retrieve_table
 
 
 # ----------------------
@@ -16,8 +13,7 @@ from mycodo.tests.software_tests.test_mycodo_flask.conftest import login_user
 def redirects_to_login_page(app, endpoint):
     """ helper function that verifies that we see the login page """
     response = app.get(endpoint).maybe_follow()
-    assert response.status_code == 200, "Endpoint Tested: {page}".format(page=endpoint)
-    assert "Mycodo Login" in response, 'Did Not see login page.  Saw "{body}"'.format(body=response.body)
+    assert response.status_code == 200 and "Mycodo Login" in response
 
 
 def test_routes_not_logged_in(testapp):

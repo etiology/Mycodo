@@ -13,7 +13,7 @@ import time
 import timeit
 
 # Classes
-from databases.mycodo_db.models import Timer
+from databases.models.models import Timer
 from mycodo_client import DaemonControl
 
 # Functions

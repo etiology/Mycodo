@@ -32,7 +32,7 @@ import errno
 import sqlalchemy
 
 from mycodo.config import SQL_DATABASE_MYCODO
-from mycodo.databases.mycodo_db.models import User
+from mycodo.databases.models.models import User
 from mycodo.databases.utils import session_scope
 from mycodo.scripts.utils import test_username, test_password, is_email, query_yes_no
 
@@ -146,8 +146,8 @@ def create_dbs(config=None, exit_when_done=True):
                 raise
 
     logging.debug("Creating/verifying mycodo.db at {} ...".format(mycodo_db_uri))
-    from mycodo.databases.mycodo_db import init_db
-    from mycodo.databases.mycodo_db import populate_db
+    from mycodo.databases.models import init_db
+    from mycodo.databases.models import populate_db
     init_db(mycodo_db_uri)
     populate_db(mycodo_db_uri)
 

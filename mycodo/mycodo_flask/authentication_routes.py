@@ -18,7 +18,7 @@ from flask_babel import gettext
 from flask.blueprints import Blueprint
 
 # Classes
-from mycodo.databases.mycodo_db.models import (
+from databases.models import (
     db,
     AlembicVersion,
     Misc,
