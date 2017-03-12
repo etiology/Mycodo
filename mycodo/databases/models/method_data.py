@@ -1,6 +1,6 @@
 # coding=utf-8
-from databases import CRUDMixin
-from mycodo_flask.extensions import db
+from mycodo.databases import CRUDMixin
+from mycodo.mycodo_flask.extensions import db
 
 
 class MethodData(CRUDMixin, db.Model):

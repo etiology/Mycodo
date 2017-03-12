@@ -222,7 +222,8 @@ class ProdConfig(object):
 
 class TestConfig(object):
     """ Testing Configuration """
-    SQLALCHEMY_DATABASE_URI = 'sqlite://'  # in-memory db
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'  # in-memory db only. tests drop the tables after they run
 
+    SECRET_KEY = '1234'
     TESTING = True
     DEBUG = True

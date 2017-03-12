@@ -1,7 +1,7 @@
 # coding=utf-8
-from mycodo_flask.extensions import db
-from databases import CRUDMixin
-import config
+from mycodo.mycodo_flask.extensions import db
+from mycodo.databases import CRUDMixin
+from mycodo import config
 
 
 class AlembicVersion(CRUDMixin, db.Model):

@@ -1,8 +1,8 @@
 # coding=utf-8
 import bcrypt
 
-from mycodo_flask.extensions import db
-from databases import CRUDMixin
+from mycodo.mycodo_flask.extensions import db
+from mycodo.databases import CRUDMixin
 
 
 class User(CRUDMixin, db.Model):
@@ -15,7 +15,7 @@ class User(CRUDMixin, db.Model):
     user_role = db.Column(db.Integer, db.ForeignKey('roles.id'), default=None)
     user_theme = db.Column(db.VARCHAR(64))
 
-    role = db.relationship("Role", back_populates="user")
+    roles = db.relationship("Role", back_populates="user")
 
     def __repr__(self):
         output = "<User: <name='{name}', email='{email}' is_admin='{isadmin}'>"

@@ -1,9 +1,9 @@
 # coding=utf-8
-from mycodo_flask.extensions import db
-from databases import CRUDMixin
-from sqlalchemy.orm import relationship
 from RPi import GPIO
-from databases import set_uuid
+
+from mycodo.databases import CRUDMixin
+from mycodo.databases import set_uuid
+from mycodo.mycodo_flask.extensions import db
 
 
 class Relay(CRUDMixin, db.Model):

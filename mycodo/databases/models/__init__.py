@@ -23,8 +23,10 @@
 import sqlalchemy
 from flask import current_app
 
-from config import USER_ROLES
-from mycodo_flask.extensions import db
+from mycodo.config import USER_ROLES
+from mycodo.mycodo_flask.extensions import db
+from .conditional import Conditional
+from .conditional import ConditionalActions
 from .alembic_version import AlembicVersion
 from .camera import Camera
 from .display_order import DisplayOrder

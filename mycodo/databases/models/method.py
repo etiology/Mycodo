@@ -1,7 +1,6 @@
 # coding=utf-8
-from databases import CRUDMixin
-from mycodo_flask.extensions import db
-from sqlalchemy.orm import relationship
+from mycodo.databases import CRUDMixin
+from mycodo.mycodo_flask.extensions import db
 
 
 class Method(CRUDMixin, db.Model):

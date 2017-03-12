@@ -1,22 +1,23 @@
 # coding=utf-8
 """ functional tests for flask endpoints """
+import pytest
 import mock
-# from flask import current_app
+from mycodo.databases.models import Sensor
 
-from databases.models import Sensor
-from mycodo.tests.software_tests.factories_user import UserFactory
+from mycodo.tests.software_tests.factories import UserFactory
 
 
 # ----------------------
 #   Non-Logged In Tests
 # ----------------------
-def redirects_to_login_page(app, endpoint):
+def redirects_to_login_page(testapp, endpoint):
     """ helper function that verifies that we see the login page """
-    response = app.get(endpoint).maybe_follow()
-    assert response.status_code == 200 and "Mycodo Login" in response
+    response = testapp.get(endpoint, expect_errors=True).maybe_follow()
+    assert response.status_code == 200, "Response Status Failure: {}".format(endpoint)
+    assert "Mycodo Login" in response
 
 
-def test_routes_not_logged_in(testapp):
+def test_routes_when_not_logged_in(testapp):
     """
     Verifies behavior of these endpoints when not logged in.
     All endpoint requests should redirect to the login page.
@@ -42,8 +43,8 @@ def test_routes_not_logged_in(testapp):
         'logout',
         'logview',
         'method',
-        'method-build/0/0',
-        'method-data/0/0',
+        'method-build/0',
+        'method-data/0',
         'method-delete/0',
         'notes',
         'past/0/0/0',
@@ -62,8 +63,7 @@ def test_routes_not_logged_in(testapp):
         'video_feed'
     ]
     for route in routes:
-        redirects_to_login_page(app=testapp,
-                                endpoint='/{add}'.format(add=route))
+        redirects_to_login_page(testapp=testapp, endpoint='/{add}'.format(add=route))
 
 
 def test_sees_admin_creation_form(testapp_no_admin_user):
