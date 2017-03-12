@@ -16,6 +16,7 @@ from sqlalchemy import func
 # Classes
 from databases.models import (
     AlembicVersion,
+    Conditional,
     LCD,
     Method,
     PID,
@@ -26,8 +27,7 @@ from databases.models import (
 )
 
 # Functions
-from databases.utils import session_scope
-from utils.database import db_retrieve_table_daemon
+from database import db_retrieve_table_daemon
 
 # Config
 from config import (
@@ -187,6 +187,7 @@ def recreate_stat_file():
     new_stat_data = [
         ['stat', 'value'],
         ['id', stat_id],
+        ['uptime', 0.0],
         ['next_send', time.time() + STATS_INTERVAL],
         ['RPi_revision', get_pi_revision()],
         ['Mycodo_revision', MYCODO_VERSION],
@@ -205,6 +206,8 @@ def recreate_stat_file():
         ['num_relays', 0],
         ['num_sensors', 0],
         ['num_sensors_active', 0],
+        ['num_conditionals', 0],
+        ['num_conditionals_active', 0],
         ['num_timers', 0],
         ['num_timers_active', 0]
     ]
@@ -217,7 +220,7 @@ def recreate_stat_file():
     os.chmod(STATS_CSV, 0664)
 
 
-def send_stats():
+def send_anonymous_stats(start_time):
     """
     Send anonymous usage statistics
 
@@ -228,6 +231,9 @@ def send_stats():
     try:
         client = InfluxDBClient(STATS_HOST, STATS_PORT, STATS_USER, STATS_PASSWORD, STATS_DATABASE)
         # Prepare stats before sending
+        uptime = (time.time() - start_time) / 86400.0  # Days
+        add_update_csv(STATS_CSV, 'uptime', uptime)
+
         version_num = db_retrieve_table_daemon(
             AlembicVersion, entry='first').version_num
         version_send = version_num if version_num else 'None'
@@ -242,6 +248,12 @@ def send_stats():
                        get_count(
                            sensors.filter(Sensor.is_activated == True)))
 
+        conditionals = db_retrieve_table_daemon(Conditional)
+        add_update_csv(STATS_CSV, 'num_conditionals', get_count(conditionals))
+        add_update_csv(STATS_CSV, 'num_conditionals_active',
+                       get_count(
+                           conditionals.filter(Conditional.is_activated == True)))
+
         pids = db_retrieve_table_daemon(PID)
         add_update_csv(STATS_CSV, 'num_pids', get_count(pids))
         add_update_csv(STATS_CSV, 'num_pids_active',
@@ -254,8 +266,7 @@ def send_stats():
 
         methods = db_retrieve_table_daemon(Method)
         add_update_csv(STATS_CSV, 'num_methods',
-                       get_count(methods.filter(
-                           Method.method_order == 0)))
+                       get_count(methods))
         add_update_csv(STATS_CSV, 'num_methods_in_pid',
                        get_count(pids.filter(PID.method_id != '')))
 
@@ -277,7 +288,7 @@ def send_stats():
             users = db_retrieve_table_daemon(User, entry='all')
             for each_user in users:
                 user_count += 1
-                if each_user.user_role == 1:
+                if each_user.role == 1:
                     admin_count += 1
         except Exception:
             pass
@@ -290,14 +301,14 @@ def send_stats():
         # Combine stats into list of dictionaries
         new_stats_dict = return_stat_file_dict(STATS_CSV)
         formatted_stat_dict = []
-        for each_key, each_value in new_stats_dict.iteritems():
+        for each_key, each_value in new_stats_dict.items():
             if each_key != 'stat':  # Do not send header row
                 formatted_stat_dict = add_stat_dict(formatted_stat_dict,
                                                     new_stats_dict['id'],
                                                     each_key,
                                                     each_value)
 
-        # Send stats to secure, remote influxdb server
+        # Send stats to secure, remote influxdb server (only write permission)
         client.write_points(formatted_stat_dict)
         logger.debug("Sent anonymous usage statistics")
         return 0

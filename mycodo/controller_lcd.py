@@ -4,7 +4,7 @@
 # controller_lcd.py - Mycodo LCD controller that outputs measurements and other
 #                     information to I2C-interfaced LCDs
 #
-#  Copyright (C) 2016  Kyle T. Gabriel
+#  Copyright (C) 2017  Kyle T. Gabriel
 #
 #  This file is part of Mycodo
 #
@@ -107,6 +107,8 @@ class LCDController(threading.Thread):
             self.lcd_period = lcd.period
             self.lcd_x_characters = lcd.x_characters
             self.lcd_y_lines = lcd.y_lines
+            self.timer = time.time() + self.lcd_period
+            self.backlight_timer = time.time()
 
             if lcd.multiplexer_address:
                 self.multiplexer_address_string = lcd.multiplexer_address
@@ -121,10 +123,8 @@ class LCDController(threading.Thread):
             for i in range(1, 5):
                 self.lcd_line[i] = {}
 
-            list_sensors = [
-                'sensor_time', 'temperature', 'humidity', 'co2', 'pressure',
-                'altitude', 'temperature_die', 'temperature_object', 'lux'
-            ]
+            list_sensors = MEASUREMENT_UNITS
+            list_sensors.update({'sensor_time': None})
 
             list_pids = ['setpoint', 'pid_time']
 
@@ -195,9 +195,6 @@ class LCDController(threading.Thread):
                     self.lcd_line[4]['name'] = sensor_line_4.name
                     if 'time' in lcd.line_4_measurement:
                         self.lcd_line[4]['measurement'] = 'time'
-
-            self.timer = time.time() + self.lcd_period
-            self.backlight_timer = time.time()
 
             self.lcd_string_line = {}
             for i in range(1, self.lcd_y_lines + 1):
@@ -307,15 +304,14 @@ class LCDController(threading.Thread):
                         if self.lcd_line[i]['measurement'] == 'time':
                             last_measurement = read_last_influxdb(
                                 self.lcd_line[i]['id'],
-                                '/.*/').raw
+                                '/.*/')
                         else:
                             last_measurement = read_last_influxdb(
                                 self.lcd_line[i]['id'],
-                                self.lcd_line[i]['measurement']).raw
+                                self.lcd_line[i]['measurement'])
                         if last_measurement:
-                            number = len(last_measurement['series'][0]['values'])
-                            self.lcd_line[i]['time'] = last_measurement['series'][0]['values'][number - 1][0]
-                            self.lcd_line[i]['measurement_value'] = last_measurement['series'][0]['values'][number - 1][1]
+                            self.lcd_line[i]['time'] = last_measurement[0]
+                            self.lcd_line[i]['measurement_value'] = last_measurement[1]
                             utc_dt = datetime.datetime.strptime(
                                 self.lcd_line[i]['time'].split(".")[0],
                                 '%Y-%m-%dT%H:%M:%S')
@@ -344,6 +340,7 @@ class LCDController(threading.Thread):
                                 PID, unique_id=self.lcd_line[i]['id'])
                             measurement = pid.measurement
                         elif self.lcd_line[i]['measurement'] in [
+                                'free_space',
                                 'temperature',
                                 'temperature_die',
                                 'temperature_object',

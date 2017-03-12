@@ -3,7 +3,7 @@
 #
 #  init_databases.py - Create and update Mycodo SQLite databases
 #
-#  Copyright (C) 2015  Kyle T. Gabriel
+#  Copyright (C) 2017  Kyle T. Gabriel
 #
 #  This file is part of Mycodo
 #
@@ -34,7 +34,12 @@ import sqlalchemy
 from mycodo.config import SQL_DATABASE_MYCODO
 from mycodo.databases.models.models import User
 from mycodo.databases.utils import session_scope
-from mycodo.scripts.utils import test_username, test_password, is_email, query_yes_no
+from mycodo.utils.utils import (
+    test_username,
+    test_password,
+    is_email,
+    query_yes_no
+)
 
 if sys.version[0] == "3":
     raw_input = input  # Make sure this works in PY3
@@ -48,9 +53,9 @@ def add_user(admin=False):
     print('\nAdd user to database')
 
     while True:
-        user_name = raw_input('User (a-z, A-Z, 2-64 chars): ')
+        user_name = raw_input('User (a-z, A-Z, 2-64 chars): ').lower()
         if test_username(user_name):
-            new_user.user_name = user_name
+            new_user.name = user_name
             break
 
     while True:
@@ -64,17 +69,17 @@ def add_user(admin=False):
                 break
 
     while True:
-        user_email = raw_input('Email: ')
-        if is_email(user_email):
-            new_user.user_email = user_email
+        email = raw_input('Email: ')
+        if is_email(email):
+            new_user.email = email
             break
 
     if admin:
-        new_user.user_role = 1
+        new_user.role = 1
     else:
-        new_user.user_role = 4
+        new_user.role = 4
 
-    new_user.user_theme = 'slate'
+    new_user.theme = 'slate'
     try:
         with session_scope(MYCODO_DB_PATH) as db_session:
             db_session.add(new_user)
@@ -89,10 +94,12 @@ def add_user(admin=False):
 
 
 def delete_user(username):
-    if query_yes_no("Confirm delete user '{}' from user database.".format(username)):
+    if query_yes_no("Confirm delete user '{}' from user "
+                    "database.".format(username.lower())):
         try:
             with session_scope(MYCODO_DB_PATH) as db_session:
-                user = db_session.query(User).filter(User.user_name == username).one()
+                user = db_session.query(User).filter(
+                    User.name == username.lower()).first()
                 db_session.delete(user)
                 print("User deleted.")
                 sys.exit(0)
@@ -102,10 +109,11 @@ def delete_user(username):
 
 
 def change_password(username):
-    print('Changing password for {}'.format(username))
+    print('Changing password for {}'.format(username.lower()))
 
     with session_scope(MYCODO_DB_PATH) as db_session:
-        user = db_session.query(User).filter(User.user_name == username).one()
+        user = db_session.query(User).filter(
+            User.name == username.lower()).first()
 
         while True:
             user_password = getpass.getpass('Password: ')

@@ -5,6 +5,24 @@
 #                       at predefined intervals or at specific times
 #                       of the day.
 #
+#  Copyright (C) 2017  Kyle T. Gabriel
+#
+#  This file is part of Mycodo
+#
+#  Mycodo is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  Mycodo is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with Mycodo. If not, see <http://www.gnu.org/licenses/>.
+#
+#  Contact at kylegabriel.com
 
 import datetime
 import logging
@@ -31,12 +49,11 @@ class TimerController(threading.Thread):
     class for controlling timers
 
     """
-    def __init__(self, ready, timer_id, db):
+    def __init__(self, ready, timer_id):
         threading.Thread.__init__(self)
 
         self.logger = logging.getLogger(
             "mycodo.timer_{id}".format(id=timer_id))
-        self.db = db
 
         self.thread_startup_timer = timeit.default_timer()
         self.thread_shutdown_timer = 0

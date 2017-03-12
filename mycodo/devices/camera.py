@@ -3,6 +3,7 @@ from __future__ import print_function  # In python 2.7
 
 import cv2
 import datetime
+import imutils
 import io
 import logging
 import os
@@ -10,17 +11,12 @@ import picamera
 import threading
 import time
 
-
 from utils.system_pi import (
     assure_path_exists,
     set_user_grp
 )
 
-from config import (
-    PATH_CAMERA_STILL,
-    PATH_CAMERA_TIMELAPSE,
-    INSTALL_DIRECTORY
-)
+from config import INSTALL_DIRECTORY
 
 logger = logging.getLogger('mycodo.devices.picamera')
 
@@ -106,33 +102,35 @@ def camera_record(record_type, settings, duration_sec=None,
     :param capture_number: timelapse capture number (for filename)
     :return:
     """
-
-    path = ''
-    filename = ''
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-
+    root_path = assure_path_exists(os.path.join(INSTALL_DIRECTORY, 'cameras'))
+    camera_path = assure_path_exists(
+        os.path.join(root_path, '{id}-{uid}'.format(id=settings.id,
+                                                    uid=settings.unique_id)))
     if record_type == 'photo':
-        path = PATH_CAMERA_STILL
+        save_path = assure_path_exists(os.path.join(camera_path, 'still'))
         filename = 'Still-{cam_id}-{cam}-{ts}.jpg'.format(
             cam_id=settings.id,
             cam=settings.name,
             ts=timestamp)
     elif record_type == 'timelapse':
-        path = PATH_CAMERA_TIMELAPSE
-        start = datetime.datetime.fromtimestamp(settings.timelapse_start_time).strftime("%Y-%m-%d_%H-%M-%S")
+        save_path = assure_path_exists(os.path.join(camera_path, 'timelapse'))
+        start = datetime.datetime.fromtimestamp(
+            settings.timelapse_start_time).strftime("%Y-%m-%d_%H-%M-%S")
         filename = 'Timelapse-{cam_id}-{cam}-{st}-img-{cn:05d}.jpg'.format(
             cam_id=settings.id,
             cam=settings.name,
             st=start,
             cn=settings.timelapse_capture_number)
     elif record_type == 'video':
-        path = os.path.join(INSTALL_DIRECTORY, 'camera-video')
+        save_path = assure_path_exists(os.path.join(camera_path, 'video'))
         filename = 'Video-{cam}-{ts}.h264'.format(
             cam=settings.name,
             ts=timestamp)
-    path_file = os.path.join(path, filename)
+    else:
+        return
 
-    assure_path_exists(path)
+    path_file = os.path.join(save_path, filename)
 
     if settings.library == 'picamera':
         with picamera.PiCamera() as camera:
@@ -172,12 +170,31 @@ def camera_record(record_type, settings, duration_sec=None,
         cap.set(cv2.cv.CV_CAP_PROP_SATURATION, settings.saturation)
 
         if record_type in ['photo', 'timelapse']:
-            ret, img = cap.read()
-            cv2.imwrite(path_file, img)
+            edited = False
+            ret, img_orig = cap.read()
+            img_edited = img_orig.copy()
+
+            if any((settings.hflip, settings.vflip, settings.rotation)):
+                edited = True
+
+            if settings.hflip and settings.vflip:
+                img_edited = cv2.flip(img_orig, -1)
+            elif settings.hflip:
+                img_edited = cv2.flip(img_orig, 1)
+            elif settings.vflip:
+                img_edited = cv2.flip(img_orig, 0)
+
+            if settings.rotation:
+                img_edited = imutils.rotate_bound(img_orig, settings.rotation)
+
+            if edited:
+                cv2.imwrite(path_file, img_edited)
+            else:
+                cv2.imwrite(path_file, img_orig)
+
             cap.release()
         else:
             return
-
     try:
         set_user_grp(path_file, 'mycodo', 'mycodo')
     except Exception as e:
@@ -187,6 +204,7 @@ def camera_record(record_type, settings, duration_sec=None,
 
 
 def count_cameras_opencv():
+    """ Returns how many cameras are detected with opencv (cv2) """
     num_cameras = 0
     for i in range(10):
         temp_camera = cv2.VideoCapture(i-1)

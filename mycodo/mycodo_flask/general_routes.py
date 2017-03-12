@@ -21,6 +21,7 @@ import socket
 import subprocess
 import sys
 import time
+import flask_login
 
 from RPi import GPIO
 from dateutil.parser import parse as date_parse
@@ -33,27 +34,36 @@ from flask import redirect
 from flask import render_template
 from flask import request
 from flask import send_from_directory
-from flask import session
 from flask import url_for
 from flask.blueprints import Blueprint
 from flask_babel import gettext
 
-from extensions import influx_db
+from flask_influxdb import InfluxDB
 from mycodo import flaskforms
 from mycodo import flaskutils
-from databases.models import DisplayOrder
-from databases.models import Misc
-from databases.models import Relay
-from databases.models import Remote
-from databases.models import Sensor
-from databases.models import User
+from mycodo.databases.mycodo_db.models import Camera
+from mycodo.databases.mycodo_db.models import DisplayOrder
+from mycodo.databases.mycodo_db.models import Misc
+from mycodo.databases.mycodo_db.models import Relay
+from mycodo.databases.mycodo_db.models import Remote
+from mycodo.databases.mycodo_db.models import Sensor
+from mycodo.databases.mycodo_db.models import User
 from mycodo.devices.camera import CameraStream
 from mycodo.flaskutils import gzipped
 from mycodo.mycodo_client import DaemonControl
 from mycodo.mycodo_flask.authentication_routes import admin_exists
 from mycodo.mycodo_flask.authentication_routes import clear_cookie_auth
-from mycodo.mycodo_flask.authentication_routes import logged_in
 from mycodo.utils.database import db_retrieve_table_daemon
+
+from config import (
+    INFLUXDB_USER,
+    INFLUXDB_PASSWORD,
+    INFLUXDB_DATABASE,
+    INSTALL_DIRECTORY,
+    LOG_PATH,
+    MYCODO_VERSION,
+    PATH_CAMERAS,
+)
 
 blueprint = Blueprint('general_routes',
                       __name__,
@@ -61,6 +71,7 @@ blueprint = Blueprint('general_routes',
                       template_folder='../templates')
 
 logger = logging.getLogger(__name__)
+influx_db = InfluxDB()
 
 
 def before_request_admin_exist():
@@ -85,7 +96,7 @@ def inject_mycodo_version():
 
     misc = Misc.query.first()
     return dict(daemon_status=daemon_status,
-                mycodo_version=current_app.config['MYCODO_VERSION'],
+                mycodo_version=MYCODO_VERSION,
                 host=socket.gethostname(),
                 hide_alert_success=misc.hide_alert_success,
                 hide_alert_info=misc.hide_alert_info,
@@ -95,24 +106,22 @@ def inject_mycodo_version():
 @blueprint.route('/')
 def home():
     """Load the default landing page"""
-    if logged_in():
+    if flask_login.current_user.is_authenticated:
         return redirect(url_for('page_routes.page_live'))
     return clear_cookie_auth()
 
 
 @blueprint.route('/settings', methods=('GET', 'POST'))
+@flask_login.login_required
 def page_settings():
     return redirect('settings/general')
 
 
 @blueprint.route('/remote/<page>', methods=('GET', 'POST'))
+@flask_login.login_required
 def remote_admin(page):
     """Return pages for remote administraion"""
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
-
-    if not flaskutils.authorized(session, 'Guest'):
-        flaskutils.deny_guest_user()
+    if not flaskutils.user_has_permission('edit_settings'):
         return redirect(url_for('general_routes.home'))
 
     remote_hosts = Remote.query.all()
@@ -148,37 +157,24 @@ def remote_admin(page):
         return render_template('404.html'), 404
 
 
-@blueprint.route('/camera/<img_type>/<filename>')
-def camera_img(img_type, filename):
+@blueprint.route('/camera/<camera_id>/<img_type>/<filename>')
+@flask_login.login_required
+def camera_img(camera_id, img_type, filename):
     """Return an image from stills or timelapses"""
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
+    camera = Camera.query.filter(Camera.id == int(camera_id)).first()
+    camera_path = os.path.join(PATH_CAMERAS, '{id}-{uid}'.format(
+            id=camera.id, uid=camera.unique_id))
 
-    still_path = current_app.config['INSTALL_DIRECTORY ']+ '/camera-stills/'
-    timelapse_path = current_app.config['INSTALL_DIRECTORY ']+ '/camera-timelapse/'
-
-    # Get a list of files in each directory
-    if os.path.isdir(still_path):
-        still_files = (files for files in os.listdir(still_path)
-                       if os.path.isfile(os.path.join(still_path, files)))
-    else:
-        still_files = []
-
-    if os.path.isdir(timelapse_path):
-        timelapse_files = (files for files in os.listdir(timelapse_path)
-                           if os.path.isfile(os.path.join(timelapse_path, files)))
-    else:
-        timelapse_files = []
-
-    if img_type == 'still':
-        # Ensure file exists in directory before serving it
-        if filename in still_files:
-            resp = make_response(open(still_path + filename).read())
-            resp.content_type = "image/jpeg"
-            return resp
-    elif img_type == 'timelapse':
-        if filename in timelapse_files:
-            resp = make_response(open(timelapse_path + filename).read())
+    if img_type in ['still', 'timelapse']:
+        path = os.path.join(camera_path, img_type)
+        if os.path.isdir(path):
+            files = (files for files in os.listdir(path)
+                               if os.path.isfile(os.path.join(path, files)))
+        else:
+            files = []
+        if filename in files:
+            path_file = os.path.join(path, filename)
+            resp = make_response(open(path_file).read())
             resp.content_type = "image/jpeg"
             return resp
 
@@ -194,21 +190,17 @@ def gen(camera):
 
 
 @blueprint.route('/video_feed')
+@flask_login.login_required
 def video_feed():
     """Video streaming route. Put this in the src attribute of an img tag."""
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
-
     return Response(gen(CameraStream()),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 @blueprint.route('/gpiostate')
+@flask_login.login_required
 def gpio_state():
     """Return the GPIO state, for relay page status"""
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
-
     relay = Relay.query.all()
     gpio_state = {}
     GPIO.setmode(GPIO.BCM)
@@ -224,22 +216,22 @@ def gpio_state():
 
 
 @blueprint.route('/dl/<dl_type>/<path:filename>')
+@flask_login.login_required
 def download_file(dl_type, filename):
     """Serve log file to download"""
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
-
-    elif dl_type == 'log':
-        return send_from_directory(current_app.config['LOG_PATH'], filename, as_attachment=True)
+    if dl_type == 'log':
+        return send_from_directory(LOG_PATH, filename, as_attachment=True)
 
     return '', 204
 
 
 @blueprint.route('/last/<sensor_measure>/<sensor_id>/<sensor_period>')
+@flask_login.login_required
 def last_data(sensor_measure, sensor_id, sensor_period):
     """Return the most recent time and value from influxdb"""
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
+    current_app.config['INFLUXDB_USER'] = INFLUXDB_USER
+    current_app.config['INFLUXDB_PASSWORD'] = INFLUXDB_PASSWORD
+    current_app.config['INFLUXDB_DATABASE'] = INFLUXDB_DATABASE
     dbcon = influx_db.connection
     try:
         raw_data = dbcon.query("""SELECT last(value)
@@ -267,12 +259,13 @@ def last_data(sensor_measure, sensor_id, sensor_period):
 
 
 @blueprint.route('/past/<sensor_measure>/<sensor_id>/<past_seconds>')
+@flask_login.login_required
 @gzipped
 def past_data(sensor_measure, sensor_id, past_seconds):
     """Return data from past_seconds until present from influxdb"""
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
-
+    current_app.config['INFLUXDB_USER'] = INFLUXDB_USER
+    current_app.config['INFLUXDB_PASSWORD'] = INFLUXDB_PASSWORD
+    current_app.config['INFLUXDB_DATABASE'] = INFLUXDB_DATABASE
     dbcon = influx_db.connection
     try:
         raw_data = dbcon.query("""SELECT value
@@ -293,15 +286,16 @@ def past_data(sensor_measure, sensor_id, past_seconds):
 
 
 @blueprint.route('/export_data/<measurement>/<unique_id>/<start_seconds>/<end_seconds>')
+@flask_login.login_required
 @gzipped
 def export_data(measurement, unique_id, start_seconds, end_seconds):
     """
     Return data from start_seconds to end_seconds from influxdb.
     Used for exporting data.
     """
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
-
+    current_app.config['INFLUXDB_USER'] = INFLUXDB_USER
+    current_app.config['INFLUXDB_PASSWORD'] = INFLUXDB_PASSWORD
+    current_app.config['INFLUXDB_DATABASE'] = INFLUXDB_DATABASE
     dbcon = influx_db.connection
 
     if measurement == 'duration_sec':
@@ -349,15 +343,16 @@ def export_data(measurement, unique_id, start_seconds, end_seconds):
 
 
 @blueprint.route('/async/<measurement>/<unique_id>/<start_seconds>/<end_seconds>')
+@flask_login.login_required
 @gzipped
 def async_data(measurement, unique_id, start_seconds, end_seconds):
     """
     Return data from start_seconds to end_seconds from influxdb.
     Used for asynchronous graph display of many points (up to millions).
     """
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
-
+    current_app.config['INFLUXDB_USER'] = INFLUXDB_USER
+    current_app.config['INFLUXDB_PASSWORD'] = INFLUXDB_PASSWORD
+    current_app.config['INFLUXDB_DATABASE'] = INFLUXDB_DATABASE
     dbcon = influx_db.connection
 
     # Set the time frame to the past year if start/end not specified
@@ -468,11 +463,9 @@ def async_data(measurement, unique_id, start_seconds, end_seconds):
 
 
 @blueprint.route('/daemonactive')
+@flask_login.login_required
 def daemon_active():
     """Return 'alive' if the daemon is running"""
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
-
     try:
         control = DaemonControl()
         return control.daemon_status()
@@ -483,13 +476,10 @@ def daemon_active():
 
 
 @blueprint.route('/systemctl/<action>')
+@flask_login.login_required
 def computer_command(action):
     """Execute one of several commands as root"""
-    if not logged_in():
-        return redirect(url_for('general_routes.home'))
-
-    if not flaskutils.authorized(session, 'Guest'):
-        flaskutils.deny_guest_user()
+    if not flaskutils.user_has_permission('edit_settings'):
         return redirect(url_for('general_routes.home'))
 
     try:
@@ -498,7 +488,7 @@ def computer_command(action):
                 action=action), "success")
             return redirect('/settings')
         cmd = '{path}/mycodo/scripts/mycodo_wrapper {action} 2>&1'.format(
-                path=current_app.config['INSTALL_DIRECTORY'], action=action)
+                path=INSTALL_DIRECTORY, action=action)
         subprocess.Popen(cmd, shell=True)
         if action == 'restart':
             flash(gettext("System rebooting in 10 seconds"), "success")
@@ -520,15 +510,15 @@ def newremote():
     pass_word = request.args.get('passw')
 
     user = User.query.filter(
-        User.user_name == username).first()
+        User.name == username).first()
 
     # TODO: Change sleep() to max requests per duration of time
     time.sleep(1)  # Slow down requests (hackish, prevent brute force attack)
     if user:
-        if User().check_password(pass_word, user.user_password_hash) == user.user_password_hash:
+        if User().check_password(pass_word, user.password_hash) == user.password_hash:
             return jsonify(status=0,
                            message="{hash}".format(
-                               hash=user.user_password_hash))
+                               hash=user.password_hash))
     return jsonify(status=1,
                    message="Unable to authenticate with user and password.")
 
@@ -540,13 +530,13 @@ def data():
     password_hash = request.args.get('pw_hash')
 
     user = User.query.filter(
-        User.user_name == username).first()
+        User.name == username).first()
 
     # TODO: Change sleep() to max requests per duration of time
     time.sleep(1)  # Slow down requests (hackish, prevents brute force attack)
     if (user and
-            user.role.name == 'admin' and
-            password_hash == user.user_password_hash):
+            user.roles.name == 'admin' and
+            password_hash == user.password_hash):
         return "0"
     return "1"
 

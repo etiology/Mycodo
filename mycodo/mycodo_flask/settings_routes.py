@@ -1,32 +1,46 @@
 # coding=utf-8
 """ collection of Page endpoints """
+import logging
 import operator
-
-from flask import current_app
-from flask import redirect
-from flask import render_template
-from flask import request
-from flask import session
-from flask import url_for
+import flask_login
+from flask import (
+    redirect,
+    render_template,
+    request,
+    url_for
+)
 from flask.blueprints import Blueprint
 
-from config import CAMERAS_SUPPORTED
-from config import LANGUAGES
-from databases.models import Camera
-from databases.models import Misc
-from databases.models import Relay
-from databases.models import Role
-from databases.models import SMTP
-from databases.models import User
+# Classes
+from mycodo.databases.mycodo_db.models import (
+    Camera,
+    Misc,
+    Relay,
+    Role,
+    SMTP,
+    User
+)
+
+# Functions
 from mycodo import flaskforms
+from mycodo import flaskutils
 from mycodo.devices.camera import count_cameras_opencv
 
+# Config
+from config import (
+    CAMERAS,
+    LANGUAGES,
+    THEMES
+)
+
 from mycodo.mycodo_flask.general_routes import inject_mycodo_version
-# from mycodo import flaskutils
-# from mycodo.mycodo_flask.general_routes import logged_in
 
+logger = logging.getLogger('mycodo.mycodo_flask.settings')
 
-blueprint = Blueprint('settings_routes', __name__, static_folder='../static', template_folder='../templates')
+blueprint = Blueprint('settings_routes',
+                      __name__,
+                      static_folder='../static',
+                      template_folder='../templates')
 
 
 @blueprint.context_processor
@@ -35,21 +49,20 @@ def inject_dictionary():
 
 
 @blueprint.route('/settings/alerts', methods=('GET', 'POST'))
+@flask_login.login_required
 def settings_alerts():
     """ Display alert settings """
-    if not logged_in():
+    if not flaskutils.user_has_permission('view_settings'):
         return redirect(url_for('general_routes.home'))
-
-    if not flaskutils.authorized(session, 'Guest'):
-        flaskutils.deny_guest_user()
-        return redirect(url_for('settings_routes.settings_general'))
 
     smtp = SMTP.query.first()
     form_email_alert = flaskforms.EmailAlert()
 
     if request.method == 'POST':
+        if not flaskutils.user_has_permission('edit_settings'):
+            return redirect(url_for('general_routes.home'))
+
         form_name = request.form['form-name']
-        # Update smtp settings table in mycodo SQL database
         if form_name == 'EmailAlert':
             flaskutils.settings_alert_mod(form_email_alert)
         return redirect(url_for('settings_routes.settings_alerts'))
@@ -60,9 +73,10 @@ def settings_alerts():
 
 
 @blueprint.route('/settings/camera', methods=('GET', 'POST'))
+@flask_login.login_required
 def settings_camera():
     """ Display camera settings """
-    if not logged_in():
+    if not flaskutils.user_has_permission('view_settings'):
         return redirect(url_for('general_routes.home'))
 
     form_camera = flaskforms.SettingsCamera()
@@ -72,7 +86,7 @@ def settings_camera():
 
     camera_libraries = []
     camera_types = []
-    for camera_type, library in CAMERAS_SUPPORTED.items():
+    for camera_type, library in CAMERAS.items():
         camera_libraries.append(library)
         camera_types.append(camera_type)
 
@@ -83,9 +97,13 @@ def settings_camera():
         if 'start_x=1' in open('/boot/config.txt').read():
             pi_camera_enabled = True
     except IOError as e:
-        current_app.logger.error("Camera IOError raised in '/settings/camera' endpoint: {err}".format(err=e))
+        logger.error("Camera IOError raised in '/settings/camera' endpoint: "
+                     "{err}".format(err=e))
 
     if request.method == 'POST':
+        if not flaskutils.user_has_permission('edit_settings'):
+            return redirect(url_for('general_routes.home'))
+
         if form_camera.camera_add.data:
             flaskutils.camera_add(form_camera)
         elif form_camera.camera_mod.data:
@@ -105,9 +123,10 @@ def settings_camera():
 
 
 @blueprint.route('/settings/general', methods=('GET', 'POST'))
+@flask_login.login_required
 def settings_general():
     """ Display general settings """
-    if not logged_in():
+    if not flaskutils.user_has_permission('view_settings'):
         return redirect(url_for('general_routes.home'))
 
     misc = Misc.query.first()
@@ -116,6 +135,9 @@ def settings_general():
     languages_sorted = sorted(LANGUAGES.items(), key=operator.itemgetter(1))
 
     if request.method == 'POST':
+        if not flaskutils.user_has_permission('edit_settings'):
+            return redirect(url_for('general_routes.home'))
+
         form_name = request.form['form-name']
         if form_name == 'General':
             flaskutils.settings_general_mod(form_settings_general)
@@ -128,36 +150,40 @@ def settings_general():
 
 
 @blueprint.route('/settings/users', methods=('GET', 'POST'))
+@flask_login.login_required
 def settings_users():
     """ Display user settings """
-    if not logged_in():
+    if not flaskutils.user_has_permission('view_settings'):
         return redirect(url_for('general_routes.home'))
-
-    if not flaskutils.authorized(session, 'Admin'):
-        flaskutils.deny_guest_user()
-        return redirect(url_for('settings_routes.settings_general'))
 
     users = User.query.all()
     user_roles = Role.query.all()
-    form_add_user = flaskforms.AddUser()
-    form_mod_user = flaskforms.ModUser()
-    form_del_user = flaskforms.DelUser()
+    form_add_user = flaskforms.UserAdd()
+    form_mod_user = flaskforms.UserMod()
+    form_user_roles = flaskforms.UserRoles()
 
     if request.method == 'POST':
-        form_name = request.form['form-name']
-        if form_name == 'addUser':
+        if not flaskutils.user_has_permission('edit_users'):
+            return redirect(url_for('general_routes.home'))
+
+        if form_add_user.add_user.data:
             flaskutils.user_add(form_add_user)
-        elif form_name == 'delUser':
-            if flaskutils.user_del(form_del_user) == 'logout':
+        elif form_mod_user.delete_user.data:
+            if flaskutils.user_del(form_mod_user) == 'logout':
                 return redirect('/logout')
-        elif form_name == 'modUser':
+        elif form_mod_user.save_user.data:
             if flaskutils.user_mod(form_mod_user) == 'logout':
                 return redirect('/logout')
+        elif (form_user_roles.add_role.data or
+                form_user_roles.save_role.data or
+                form_user_roles.delete_role.data):
+            flaskutils.user_roles(form_user_roles)
         return redirect(url_for('settings_routes.settings_users'))
 
     return render_template('settings/users.html',
+                           themes=THEMES,
                            users=users,
                            user_roles=user_roles,
                            form_add_user=form_add_user,
                            form_mod_user=form_mod_user,
-                           form_del_user=form_del_user)
+                           form_user_roles=form_user_roles)

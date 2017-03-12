@@ -71,7 +71,7 @@
 
     {%- if sensorDisplayOrderSorted|length == 0 -%}
       <div>
-        No Sensors Activated. <a href="/sensor">Click here</a> to add and activate a sensor.
+        No Sensors Activated. <a href="/sensor">Click here</a> to go to the sensor page. Read the <a href="/help">Manual</a> to become more familiar with the system and configuration options.
       </div>
     {%- endif -%}
 
@@ -111,6 +111,13 @@
                   <b><span id="{{each_sensor.unique_id}}-cpu_load_1m-value">0.0</span> (1m)</b> | <span id="{{each_sensor.unique_id}}-cpu_load_1m-time">&lt;please wait&gt;</span>
                   <br><b><span id="{{each_sensor.unique_id}}-cpu_load_5m-value">0.0</span> (5m)</b> | <span id="{{each_sensor.unique_id}}-cpu_load_5m-time">&lt;please wait&gt;</span>
                   <br><b><span id="{{each_sensor.unique_id}}-cpu_load_15m-value">0.0</span> (15m)</b> | <span id="{{each_sensor.unique_id}}-cpu_load_15m-time">&lt;please wait&gt;</span>
+                </div>
+              </div>
+            {%- elif each_sensor.device_type == 'free_space' %}
+              <div class="inline-right text-right" style="padding: 0.3em;">
+                {{_('Measurement')}} | {{_('Timestamp')}}
+                <div>
+                  <b><span id="{{each_sensor.unique_id}}-free_space-value">0.0</span> (MB)</b> | <span id="{{each_sensor.unique_id}}-free_space-time">&lt;please wait&gt;</span>
                 </div>
               </div>
             {%- elif each_sensor.device_type == 'tsensor' %}
@@ -202,7 +209,7 @@
                       </div>
                     </div>
                     <div class="inline-right" style="padding: 0.3em;">
-                      {{_('Gains')}}
+                      {{_('Gain')}}
                       <div>
                         K<sub>P</sub>: {{each_pid.p}}, K<sub>I</sub>: {{each_pid.i}}, K<sub>D</sub>: {{each_pid.d}}
                       </div>
@@ -218,9 +225,15 @@
                       </div>
                     </div>
                     <div style="display: inline-block; padding: 0.3em;">
-                      {{_('On Duration')}}
+                      {{_('On Duration (sec.)')}}
                       <div>
-                        {{_('Min')}}: {{each_pid.raise_min_duration}} {{_('sec.')}}, {{_('Max')}}: {{each_pid.raise_max_duration}} {{_('sec.')}}
+                        {{_('Min')}}: {{each_pid.raise_min_duration}}, {{_('Max')}}: {{each_pid.raise_max_duration}}
+                       </div>
+                    </div>
+                    <div style="display: inline-block; padding: 0.3em;">
+                      {{_('Off Duration (sec.)')}}
+                      <div>
+                        {{_('Min')}}: {{each_pid.raise_min_off_duration}}
                       </div>
                     </div>
                     <div style="display: inline-block; padding: 0.3em;">
@@ -241,9 +254,15 @@
                       </div>
                     </div>
                     <div style="display: inline-block; padding: 0.3em;">
-                      {{_('On Duration')}}
+                      {{_('On Duration (sec.)')}}
                       <div>
-                        {{_('Min')}}: {{each_pid.lower_min_duration}} {{_('sec.')}}, {{_('Max')}}: {{each_pid.lower_max_duration}} {{_('sec.')}}
+                        {{_('Min')}}: {{each_pid.lower_min_duration}}, {{_('Max')}}: {{each_pid.lower_max_duration}}
+                      </div>
+                    </div>
+                    <div style="display: inline-block; padding: 0.3em;">
+                      {{_('Off Duration (sec.)')}}
+                      <div>
+                        {{_('Min')}}: {{each_pid.lower_min_off_duration}}
                       </div>
                     </div>
                     <div style="display: inline-block; padding: 0.3em;">
@@ -255,9 +274,9 @@
                   </div>
                   {%- endfor -%}
 
-                  {%- for each_method in method if each_method.method_id == each_pid.method_id -%}
+                  {%- for each_method in method if each_method.id == each_pid.method_id -%}
                     <div style="padding: 0 0.3em 0 0.6em;">
-                      {{_('Method Enabled')}}: <a href="/method-build/{{each_method.method_type}}/{{each_method.method_id}}">{{each_method.name}} ({{each_method.method_id}})</a>
+                      {{_('Method Enabled')}}: <a href="/method-build/{{each_method.id}}">{{each_method.name}} ({{each_method.id}})</a>
                     </div>
                   {%- endfor -%}
 
